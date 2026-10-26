@@ -76,6 +76,8 @@ def source_archive():
             if name not in ('LICENSE','THIRD_PARTY_NOTICES.md'):archive.write(ROOT/name,name)
         for name in PUBLIC_DOCS:
             archive.write(ROOT/'docs'/name,'docs/'+name)
+        for name in ['directors-cut-banner.png','directors-cut-assets.png','directors-cut-video.png']:
+            archive.write(ROOT/'docs/images'/name,'docs/images/'+name)
         for name in ['test_core.py','test_engine_connection.py','test_model_downloads.py','test_release.py']:
             path=ROOT/'tests'/name
             if path.exists():archive.write(path,'tests/'+name)

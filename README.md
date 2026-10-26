@@ -1,6 +1,4 @@
-# Director’s Cut
-
-**Create locally.**
+![Director’s Cut — Create locally.](docs/images/directors-cut-banner.png)
 
 Create characters, props and locations, then bring them together in reference-driven video. Director’s Cut connects to your own ComfyUI and uses **Qwen-Image 2.1**, **MiniMax H3 REF2VA** and the official **Comfy SDK**.
 
@@ -18,12 +16,16 @@ A compatible ComfyUI installation and model files are required separately. The c
 
 ## What you can make
 
+![Assets workspace: build characters with presets, prompts and image references.](docs/images/directors-cut-assets.png)
+
 - Characters, props and locations from presets, written prompts and image references.
 - Image edits, alternate views and character details.
 - H3 REF2VA videos using saved assets and optional motion or audio references.
 - Project libraries with generation history, approved takes and reusable settings.
 
 Optional local prompt enhancers and an MCP bridge are available. MCP host integration is still awaiting end-to-end user testing; it is not required to run the app.
+
+![Video workspace: bring saved characters and locations together as references.](docs/images/directors-cut-video.png)
 
 ## Getting started
 

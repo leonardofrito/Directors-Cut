@@ -1,10 +1,12 @@
-# Design reference
+# Third-party notices
 
 Category icons are from [Lucide](https://lucide.dev), bundled locally in
 `web/assets/icons/lucide`. Their ISC license and applicable Feather MIT notices
 are retained in that directory's `LICENSE` file.
 
-Director's Cut uses [Comfy's hosted Cinematic Studio](https://comfy.org/hub/apps/cinematic-studio/) as its visual reference. The current interface uses our own implementation, layout markup and clapperboard mark. The initial prototype adapted the palette and selected styling conventions from the MIT-licensed [Comfy Cinematic Studio repository](https://github.com/Comfy-Org/comfy-cinematic-studio); its notice is retained below. Director's Cut is an independent project.
+## Retained upstream license notice
+
+The following Comfy Org MIT notice is retained from the initial prototype materials. It is a license notice, not a claim that Director’s Cut uses another studio application as its implementation.
 
 MIT License
 

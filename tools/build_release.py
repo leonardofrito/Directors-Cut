@@ -6,7 +6,7 @@ from openframe.version import VERSION
 OUTPUT=ROOT/'release'/VERSION
 STAGE=ROOT/'.runtime/package-stage'
 
-PUBLIC_DOCS=['comfy-connection.md','model-downloads.md','model-setup.md','mcp.md','video-workspace.md','editing-prompts.md','competition-rules.md','release-readiness.md']
+PUBLIC_DOCS=['comfy-connection.md','model-downloads.md','model-setup.md','mcp.md','video-workspace.md','image-direction.md','asset-library.md','editing-prompts.md','competition-rules.md','release-readiness.md']
 def dependency_notices():
     from packaging.requirements import Requirement
     pending=['aiohttp','comfy-sdk','comfy-api-proxy','Pillow','psutil'];seen=set();sections=[]
@@ -68,11 +68,11 @@ def source_archive():
         files.extend(p for p in (ROOT/folder).rglob('*.py') if '__pycache__' not in p.parts)
     with zipfile.ZipFile(target,'w',zipfile.ZIP_DEFLATED) as archive:
         for path in files:
-            if path.is_relative_to(ROOT/'tools') and path.name not in ['build_release.py','smoke_release.py','mcp_config.py']:continue
+            if path.is_relative_to(ROOT/'tools') and path.name not in ['build_release.py','smoke_release.py','mcp_config.py','update_prompt_guides.py']:continue
             archive.write(path,path.relative_to(ROOT))
         for path in STAGE.rglob('*'):
             if path.is_file() and path.name not in ('app.ico','app.icns'):archive.write(path,path.relative_to(STAGE))
-        for name in ['app_entry.py','run.py',"Start Director's Cut.bat",'directors_cut_mcp.py','requirements.txt','requirements-mcp.txt','requirements-build.txt','setup.bat','setup.sh','start.sh','README.md','LICENSE','THIRD_PARTY_NOTICES.md']:
+        for name in ['app_entry.py','run.py',"Start Director's Cut.bat","Start Director's Cut MCP.bat",'directors_cut_mcp.py','requirements.txt','requirements-mcp.txt','requirements-build.txt','setup.bat','setup.sh','start.sh','README.md','LICENSE','THIRD_PARTY_NOTICES.md']:
             if name not in ('LICENSE','THIRD_PARTY_NOTICES.md'):archive.write(ROOT/name,name)
         for name in PUBLIC_DOCS:
             archive.write(ROOT/'docs'/name,'docs/'+name)

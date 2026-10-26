@@ -51,13 +51,7 @@ Portable is a Windows distribution; Desktop/manual installs are detected using
 their platform-specific paths. Custom addresses/paths remain available when
 automatic detection cannot see a process or a sandboxed Desktop installation.
 
-Device reporting distinguishes NVIDIA/CUDA, AMD/ROCm, DirectML, Intel/XPU and
-Apple/MPS; MPS may report unified RAM instead of dedicated VRAM. This is capability
-reporting, not certification that a model can execute. In particular W4A8,
-NVFP4, INT8 loaders and optional custom nodes have backend-specific kernel and
-driver requirements. The H3 workflow still has its memory floor and installed-node
-checks. An unsupported quantization is not converted silently. Install a version
-compatible with your ComfyUI/backend; the app does not replace PyTorch or drivers.
+ComfyUI supplies hardware and backend support. Quantized loaders and optional custom nodes need compatible kernels and drivers. Install versions suited to your ComfyUI backend; Director’s Cut does not replace PyTorch or drivers, or convert unsupported formats silently.
 
 ### Verification, 2026-10-24
 
@@ -71,7 +65,7 @@ compatible with your ComfyUI/backend; the app does not replace PyTorch or driver
   guard, actual tiny HTTP resume/hash/download to the selected folder, and the
   existing no-overwrite/hash/path checks.
 - `.github/workflows/portable-connection.yml` defines Windows/Linux/macOS CI for
-  these checks. That CI has **not** been executed in this local checkout.
+  these checks. The initial published runs did not complete successfully; native macOS/Linux packages are not currently available.
 - Linux/macOS path tests run as fixtures on Windows. Physical Linux/Mac/AMD/Intel
   machines and large model downloads on those machines are **not tested here**.
   Do not label this as universal hardware certification.

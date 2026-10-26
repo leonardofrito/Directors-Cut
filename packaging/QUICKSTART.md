@@ -1,58 +1,64 @@
-# Director's Cut — 0.1.0 release candidate
+# Director’s Cut — Quick Start
 
-A local studio for characters, props, locations and reference-driven video.
-Uses Qwen-Image 2.1, MiniMax H3 REF2VA and the official Comfy SDK.
+Create assets and reference-driven video with your own ComfyUI.
 
-## Windows portable EXE
+## Downloads
 
-1. Start your existing ComfyUI. Current compatible ComfyUI and workflow nodes are required.
-2. Double-click the Windows EXE. Python is included; no Python setup is needed.
-3. Your browser opens **Engine settings → Connection** on first use.
-4. Detect/select ComfyUI, check the address and **models folder**, then save.
-5. In Images/Video settings, select compatible models, including optional GGUF and prompt enhancers. Missing verified catalog
-   files have a highlighted **Download** button. Download the selected files; the
-   app places them in ComfyUI's matching model folders, verifies them and resumes
-   interrupted transfers. Existing models are reused.
-6. Create a project and asset, then use @references in a video shot.
+| Platform | Download | Setup |
+| --- | --- | --- |
+| Windows x64 | [Windows EXE](https://github.com/leonardofrito/Directors-Cut/releases/download/v0.1.0-rc.2/DirectorsCut-0.1.0-rc.2-windows-x64.exe) | Open the file; Python is included. |
+| macOS | [Source package](https://github.com/leonardofrito/Directors-Cut/releases/download/v0.1.0-rc.2/DirectorsCut-0.1.0-rc.2-source.zip) | Extract, then follow the source instructions below. |
+| Linux | [Source package](https://github.com/leonardofrito/Directors-Cut/releases/download/v0.1.0-rc.2/DirectorsCut-0.1.0-rc.2-source.zip) | Extract, then follow the source instructions below. |
 
-The EXE contains no model weights, ComfyUI install, GPU driver or personal project.
-It does not modify your ComfyUI environment. Missing custom nodes must be installed
-in ComfyUI; Settings reports them. Quantized kernels depend on your GPU/backend.
-Omni REF variants are explicitly unofficial. Model licenses are separate.
+[All release files and notes](https://github.com/leonardofrito/Directors-Cut/releases/tag/v0.1.0-rc.2)
 
-**Quit:** Engine settings → Quit app. Finish/cancel generations and pause downloads
-first. Closing the browser tab alone leaves the studio running. Double-clicking
-the EXE again opens the existing studio instead of starting a duplicate server.
+Native macOS and Linux packages are not published yet. Their links above download source code, not an EXE or a ready-made app. The Windows build is currently unsigned.
 
-**Data:** Windows `%LOCALAPPDATA%\DirectorsCut`; macOS
-`~/Library/Application Support/DirectorsCut`; Linux
-`~/.local/share/directors-cut` (or `$XDG_DATA_HOME/directors-cut`). Projects remain
-there when the EXE is moved or replaced. Open the folder from Settings. Logs are
-in its `.runtime` subfolder. Back up the whole data folder before replacing builds.
-An existing source library can be opened with `--data "/path/to/existing/studio"`.
+## Before you start
 
-The app listens on localhost by default. Advanced private-network use:
-`DirectorsCut.exe --listen 0.0.0.0 --port 7860`. No firewall/router rules are changed.
+Install and start a compatible ComfyUI. Its required workflow nodes and model files are separate from Director’s Cut. Model downloads are available in the app; missing custom nodes must be installed in ComfyUI.
 
-## macOS / Linux
+## Windows EXE
 
-Native bundles must be built on their target OS. The source ZIP includes launch
-scripts and a native GitHub Actions build matrix; it is not a pretested Mac/Linux
-binary. From the extracted source: `sh setup.sh`, then
-`.venv/bin/python app_entry.py`. Python/uv is required for source setup.
-To build a standalone native bundle: install `requirements-build.txt`, then run
-`python tools/build_release.py`. macOS produces an app bundle ZIP, Linux a single
-executable. Download artifacts from the native build workflow when published.
+1. Download the EXE above and open it.
+2. Connect Director’s Cut to your ComfyUI address and select its data/models folder.
+3. Choose compatible models and download any missing catalog files.
 
-## Media support and known limits
+The app opens in your browser. No Python installation or source checkout is needed for this EXE.
 
-- FFmpeg is needed for uploaded motion/audio references and soundtrack replacement.
-  The app uses PATH, `OPENFRAME_FFMPEG` or a detected ComfyUI environment's existing
-  FFmpeg. No FFmpeg binary is redistributed in this candidate.
-- The binary is unsigned. Signing/notarization and native Mac/Linux validation are pending.
-- This is a test release, not certification for every GPU/model precision. No large
-  weights or GPU inference were used merely to validate packaging.
-- The optional MCP bridge is in the source ZIP (`docs/mcp.md`); the standalone
-  executable does not bundle a separate host LLM or stdio MCP runtime.
+## macOS, Linux or source development
 
-App: MIT. Dependency/font/icon notices are bundled and available in Settings.
+Install Python 3.12 or [uv](https://docs.astral.sh/uv/), then extract the source package.
+
+On macOS and Linux:
+
+```sh
+sh setup.sh
+sh start.sh
+```
+
+On Windows, run `setup.bat`, then `Start Director's Cut.bat`.
+
+Open `http://127.0.0.1:7860` and configure the ComfyUI connection. See the [connection guide](https://github.com/leonardofrito/Directors-Cut/blob/main/docs/comfy-connection.md) for custom paths, ports and remote engines.
+
+## Your projects
+
+The packaged app keeps its data outside the executable:
+
+| System | Default data folder |
+| --- | --- |
+| Windows | `%LOCALAPPDATA%/DirectorsCut` |
+| macOS | `~/Library/Application Support/DirectorsCut` |
+| Linux | `~/.local/share/directors-cut`, or `$XDG_DATA_HOME/directors-cut` |
+
+Moving or replacing the executable does not move your projects. Back up the data folder before replacing a build. Source launches use their project directory unless a data path is supplied.
+
+Use **Quit app** to stop Director’s Cut. Closing its browser tab leaves the local server running.
+
+## Optional features
+
+- Uploaded motion/audio references and soundtrack replacement require FFmpeg, found through PATH, `OPENFRAME_FFMPEG` or a detected ComfyUI environment.
+- [MCP setup](https://github.com/leonardofrito/Directors-Cut/blob/main/docs/mcp.md) is separate from the EXE and needs the source package plus `requirements-mcp.txt`. End-to-end host testing is still pending.
+- GGUF files require compatible ComfyUI loaders. Omni REF variants are labelled unofficial.
+
+[Model downloads](https://github.com/leonardofrito/Directors-Cut/blob/main/docs/model-downloads.md) · [License](https://github.com/leonardofrito/Directors-Cut/blob/main/LICENSE)

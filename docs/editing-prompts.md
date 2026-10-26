@@ -1,17 +1,20 @@
-# Editing Director’s Cut prompts
+# Editing the default prompts
 
-These are local Python sources. Restart Director’s Cut after editing backend prompt text. Existing images and saved prompts are preserved; changes affect new generations.
+Prompt definitions live in local Python sources. Restart Director’s Cut after changing backend text. New generations use the changes; existing takes retain their saved settings and prompts.
 
-| What to change | File / section |
+| What to edit | Source |
 | --- | --- |
-| Character type descriptions (Average, Bold, Extreme, animals, etc.) | [characters.py](../openframe/characters.py), `TYPE_HINTS` |
-| Character categories and visible option names | [characters.py](../openframe/characters.py), `SPECS` and `EXTRAS` |
-| Character prompt assembly and photographic rendering guidance | [characters.py](../openframe/characters.py), `character_prompt` and `character_render_direction` |
-| Location and prop presets and descriptions | [asset_presets.py](../openframe/asset_presets.py), `LOCATION`, `PROP`, `asset_prompt` |
-| Storyboard camera, framing, light, lens, film, look and color grade descriptions | [presets.py](../openframe/presets.py), the corresponding preset dictionaries |
-| Prompt enhancer instructions | [enhancer.py](../openframe/enhancer.py), `SYSTEM` |
-| How scene text, references and art direction become the final prompt | [provider.py](../openframe/provider.py), `build_graph` |
+| Character types, traits and appearance descriptions | [characters.py](../openframe/characters.py) |
+| Location and prop presets | [asset_presets.py](../openframe/asset_presets.py) |
+| Expanded preset directions | [preset_directions.py](../openframe/preset_directions.py) |
+| Camera, framing and lighting dictionaries | [presets.py](../openframe/presets.py) |
+| Image enhancer instructions | [enhancer.py](../openframe/enhancer.py) |
+| Video direction and enhancer instructions | [video_prompt.py](../openframe/video_prompt.py) |
+| Image-edit presets | [edit_presets.py](../openframe/edit_presets.py) |
+| Image prompt assembly | [provider.py](../openframe/provider.py) |
 
-To keep a short label in the interface and a longer prompt behind it, keep the option key unchanged and edit its `hints` description. `TYPE_HINTS` is the existing example. Categories without a hint currently use the visible option text; add a hint mapping to that category to expand it without renaming the option. For custom selections, the text you enter is used directly.
+Keep option keys unchanged when you only want a richer backend description. That preserves the short labels and saved selections. Custom written details remain part of the user's request.
 
-The preset preview recipe is separate: [plan_preset_previews.py](../tools/plan_preset_previews.py). Editing a prompt does not generate preview images automatically.
+Preset thumbnails are separate image files. Editing a prompt does not regenerate them.
+
+[Image prompting](image-direction.md) · [Video workflows](video-workspace.md)

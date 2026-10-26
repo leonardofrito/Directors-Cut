@@ -97,3 +97,7 @@ Use original project characters and authorized references in the public demonstr
 
 Do not publish, submit forms or post on Leonardo's behalf without his authorization.
 
+
+## Publication verified — 2026-10-26
+
+With Leonardo's explicit authorization, the curated application source was published to https://github.com/leonardofrito/Directors-Cut and Windows release candidate v0.1.0-rc.2 was published with a standalone EXE, source package, setup guide and checksums. The public EXE link returned HTTP 200 and the expected 33,301,801-byte size. This supersedes the historical no-public-repository note above. It does not complete competition registration, social/demo submission, signing, second-PC validation or Mac/Linux native testing. Publication details and the separate clean checkout are in docs/publication.md.

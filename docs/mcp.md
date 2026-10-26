@@ -6,9 +6,7 @@ key, or embed GPT/Claude. The assistant in your chosen host writes the prompt;
 Qwen/H3 generation still runs on your local ComfyUI. The host's own subscription,
 model access, privacy and usage limits apply.
 
-This checkout already has ComfyUI MCP tools available in its current assistant
-environment. That connector controls ComfyUI itself; this new server controls
-Director’s Cut projects, studies, Library assets and generation queue.
+This bridge is optional. End-to-end connection and behavior in an external MCP host are still awaiting user testing.
 
 ## Install and connect
 
@@ -25,7 +23,7 @@ Or, in an environment with pip:
 ```
 
 For any host that supports **stdio**, configure a local server named
-`directors-cut`. Use the absolute `.venv/Scripts/python.exe` as its command and
+`directors-cut`. Use the absolute `.venv/Scripts/python.exe` (Windows) or `.venv/bin/python` (macOS/Linux) as its command and
 the absolute `directors_cut_mcp.py` as its argument. Generate JSON for hosts using
 the `mcpServers` configuration format:
 
@@ -37,16 +35,15 @@ Merge that entry into the host configuration; do not replace other servers.
 The host launches the bridge, so no extra CMD window is needed for stdio.
 No public MCP registry registration is required for a local connection.
 
-For **Codex**, Settings → MCP servers → Add server → STDIO, then enter those
-command/argument values and restart the MCP connection. The equivalent CLI is:
+For **Streamable HTTP**, start the bridge explicitly:
 
-```text
-codex mcp add directors-cut -- "ABSOLUTE/PATH/.venv/Scripts/python.exe" "ABSOLUTE/PATH/directors_cut_mcp.py"
+```sh
+python directors_cut_mcp.py --transport streamable-http
 ```
 
-For a local host using **Streamable HTTP**, run `Start Director's Cut MCP.bat`,
-then connect to `http://127.0.0.1:7861/mcp`. It intentionally listens only on
-loopback. This is a separate port from the web interface on 7860.
+Use the Python interpreter from the source installation's `.venv`. The Windows source package also includes `Start Director's Cut MCP.bat`.
+
+Connect a compatible local host to `http://127.0.0.1:7861/mcp`. This listener is separate from the app on port 7860 and stays on loopback.
 
 The protocol is interoperable, but not every chat has MCP enabled or supports
 local servers. Availability of tools, resources, prompts and image inputs depends
@@ -55,7 +52,7 @@ not publish your machine, add a tunnel, or promise remote/cloud connectivity.
 
 For a desktop assistant on another LAN/Tailscale PC, run the stdio bridge on
 that PC and set `DIRECTORS_CUT_URL` to the studio PC's private address, e.g.
-`http://100.73.218.42:7860`. Set `OPENFRAME_COMFY_URL` to its private ComfyUI
+`http://<studio-PC-IP>:7860`. Set `OPENFRAME_COMFY_URL` to its private ComfyUI
 address if engine diagnostics are desired. Photo-upload paths refer to the
 machine running the bridge. No firewall/router rules are changed.
 
@@ -72,7 +69,7 @@ machine running the bridge. No firewall/router rules are changed.
 - Vision: `view_asset` supplies an existing thumbnail to the host assistant.
   It does not generate an image or run a local vision model.
 - Memory: `release_idle_memory` requests model/cache unloading only when both
-  queues are idle. It is not a remedy for weights larger than VRAM.
+  queues are idle.
 - Templates: `write_video_prompt`, `write_asset_prompt`.
 - Resources: `directors-cut://guides/h3`, `/qwen`, `/qwen-edit`.
 

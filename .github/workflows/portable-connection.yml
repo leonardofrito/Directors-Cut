@@ -1,0 +1,16 @@
+name: Portable connection and downloads
+on: [push, pull_request, workflow_dispatch]
+jobs:
+  connection:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r requirements.txt
+      - run: python -m unittest tests.test_engine_connection tests.test_model_downloads -q

@@ -1,0 +1,161 @@
+{
+  "75_61": {
+    "class_type": "KSamplerSelect",
+    "inputs": {
+      "sampler_name": "euler"
+    }
+  },
+  "75_62": {
+    "class_type": "Flux2Scheduler",
+    "inputs": {
+      "steps": 20,
+      "width": [
+        "75_68",
+        0
+      ],
+      "height": [
+        "75_69",
+        0
+      ]
+    }
+  },
+  "75_63": {
+    "class_type": "CFGGuider",
+    "inputs": {
+      "cfg": 5,
+      "model": [
+        "75_70",
+        0
+      ],
+      "positive": [
+        "75_74",
+        0
+      ],
+      "negative": [
+        "75_67",
+        0
+      ]
+    }
+  },
+  "75_64": {
+    "class_type": "SamplerCustomAdvanced",
+    "inputs": {
+      "noise": [
+        "75_73",
+        0
+      ],
+      "guider": [
+        "75_63",
+        0
+      ],
+      "sampler": [
+        "75_61",
+        0
+      ],
+      "sigmas": [
+        "75_62",
+        0
+      ],
+      "latent_image": [
+        "75_66",
+        0
+      ]
+    }
+  },
+  "75_65": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": [
+        "75_64",
+        0
+      ],
+      "vae": [
+        "75_72",
+        0
+      ]
+    }
+  },
+  "75_66": {
+    "class_type": "EmptyFlux2LatentImage",
+    "inputs": {
+      "width": [
+        "75_68",
+        0
+      ],
+      "height": [
+        "75_69",
+        0
+      ],
+      "batch_size": 1
+    }
+  },
+  "75_67": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "",
+      "clip": [
+        "75_71",
+        0
+      ]
+    }
+  },
+  "75_68": {
+    "class_type": "PrimitiveInt",
+    "inputs": {
+      "value": 1024
+    }
+  },
+  "75_69": {
+    "class_type": "PrimitiveInt",
+    "inputs": {
+      "value": 1024
+    }
+  },
+  "75_73": {
+    "class_type": "RandomNoise",
+    "inputs": {
+      "noise_seed": 145965955694731
+    }
+  },
+  "75_70": {
+    "class_type": "UNETLoader",
+    "inputs": {
+      "unet_name": "flux-2-klein-base-9b-fp8.safetensors",
+      "weight_dtype": "default"
+    }
+  },
+  "75_71": {
+    "class_type": "CLIPLoader",
+    "inputs": {
+      "clip_name": "qwen_3_8b_fp8mixed.safetensors",
+      "type": "flux2",
+      "device": "default"
+    }
+  },
+  "75_72": {
+    "class_type": "VAELoader",
+    "inputs": {
+      "vae_name": "full_encoder_small_decoder.safetensors"
+    }
+  },
+  "75_74": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "A vintage motorcycle parked in front of a retro diner at sunset, warm orange and pink sky, neon signs glowing, 80s vintage photo style, film grain, warm color cast",
+      "clip": [
+        "75_71",
+        0
+      ]
+    }
+  },
+  "9": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "filename_prefix": "Flux2-Klein",
+      "images": [
+        "75_65",
+        0
+      ]
+    }
+  }
+}

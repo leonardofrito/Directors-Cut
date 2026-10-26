@@ -1,0 +1,343 @@
+{
+  "92": {
+    "inputs": {
+      "filename_prefix": "video/DirectorsCut/FastH3_OmniRef",
+      "format": "auto",
+      "codec": "auto",
+      "video": [
+        "130",
+        0
+      ],
+      "format.codec": "auto"
+    },
+    "class_type": "SaveVideo",
+    "_meta": {
+      "title": "Save Video"
+    }
+  },
+  "130": {
+    "inputs": {
+      "fps": 24,
+      "bit_depth": 8,
+      "color_space": "sRGB",
+      "codec": "none",
+      "images": [
+        "122",
+        0
+      ],
+      "audio": [
+        "121",
+        0
+      ]
+    },
+    "class_type": "CreateVideo",
+    "_meta": {
+      "title": "Create Video"
+    }
+  },
+  "122": {
+    "inputs": {
+      "samples": [
+        "125",
+        0
+      ],
+      "vae": [
+        "119",
+        0
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE Decode"
+    }
+  },
+  "125": {
+    "inputs": {
+      "noise": [
+        "129",
+        0
+      ],
+      "guider": [
+        "126",
+        0
+      ],
+      "sampler": [
+        "123",
+        0
+      ],
+      "sigmas": [
+        "124",
+        0
+      ],
+      "latent_image": [
+        "136",
+        1
+      ]
+    },
+    "class_type": "SamplerCustomAdvanced",
+    "_meta": {
+      "title": "SamplerCustomAdvanced"
+    }
+  },
+  "129": {
+    "inputs": {
+      "noise_seed": 638533252792461
+    },
+    "class_type": "RandomNoise",
+    "_meta": {
+      "title": "RandomNoise"
+    }
+  },
+  "126": {
+    "inputs": {
+      "model": [
+        "143",
+        0
+      ],
+      "conditioning": [
+        "136",
+        0
+      ]
+    },
+    "class_type": "BasicGuider",
+    "_meta": {
+      "title": "Basic Guider"
+    }
+  },
+  "143": {
+    "class_type": "BlockSparseAttention",
+    "inputs": {
+      "model": [
+        "142",
+        0
+      ],
+      "selection": "vsa",
+      "selection.keep_percent": 10,
+      "start_percent": 0,
+      "end_percent": 1,
+      "dense_blocks": "",
+      "min_tokens": 12288,
+      "extra_tokens": 256,
+      "sink_conditioning": "exact_kv_and_rows",
+      "verbose": false
+    }
+  },
+  "142": {
+    "class_type": "ModelAttentionBackend",
+    "inputs": {
+      "model": [
+        "141",
+        0
+      ],
+      "attention": "comfy kitchen attention"
+    }
+  },
+  "141": {
+    "class_type": "MiniMaxH3SigmaShift",
+    "inputs": {
+      "model": [
+        "127",
+        0
+      ],
+      "shift_video": 12.0,
+      "shift_audio": 3.0
+    }
+  },
+  "127": {
+    "inputs": {
+      "unet_name": "fasth3_omniref_8step_pruned_int8_convrot.safetensors",
+      "weight_dtype": "default"
+    },
+    "class_type": "UNETLoader",
+    "_meta": {
+      "title": "Load Diffusion Model"
+    }
+  },
+  "136": {
+    "inputs": {
+      "ref_image_size": "match",
+      "clip": [
+        "128",
+        0
+      ],
+      "prompt": [
+        "138",
+        0
+      ],
+      "width": [
+        "115",
+        0
+      ],
+      "height": [
+        "115",
+        1
+      ],
+      "length": [
+        "131",
+        1
+      ],
+      "vae": [
+        "119",
+        0
+      ],
+      "audio_vae": [
+        "120",
+        0
+      ],
+      "ref_images.ref_image_0": [
+        "139",
+        0
+      ],
+      "ref_images.ref_image_1": [
+        "137",
+        0
+      ],
+      "ref_images.ref_image_2": [
+        "147",
+        0
+      ]
+    },
+    "class_type": "MiniMaxH3ReferenceToVideo",
+    "_meta": {
+      "title": "MiniMax H3 Reference to Video"
+    }
+  },
+  "128": {
+    "inputs": {
+      "clip_name": "qwen3vl_32b_minimax_h3_w4a8_mixed.safetensors",
+      "type": "minimax",
+      "device": "default"
+    },
+    "class_type": "CLIPLoader",
+    "_meta": {
+      "title": "Load CLIP"
+    }
+  },
+  "138": {
+    "inputs": {
+      "value": "subject_definitions:\n<Subject 1> is the dungeon and wooden crates from <Picture 1>. Preserve the stone architecture, materials, painterly rendering style and lighting; create a new composition within this location.\n<Subject 2> is Narciso from <Picture 2>, an invisible adult sorcerer represented only by his floating clothes and accessories. Preserve his exact clothing and invisible body: no visible head, face, skin or hands. Empty space remains above his collar.\n<Subject 3> is the bard from <Picture 3>. Preserve his individual identity, unusual proportions, hairstyle, costume and rendering style. He is a different character from Narciso.\n\nsummary:\n[reference generation] A five-second playful fantasy-comedy scene. Narciso and the bard crouch together behind closed wooden crates in the dungeon, hiding from guards outside the shot. Narciso requests a compliment to activate his ability, and the bard cannot think of one because Narciso is invisible.\n\nretention_analysis:\n<Subject 1> appears throughout: preserve the location design, not the exact camera position of its reference.\n<Subject 2> appears throughout: preserve invisible anatomy, clothing and accessories from <Picture 2>.\n<Subject 3> appears throughout: preserve the bard's identity and clothing from <Picture 3>.\n\ndetailed_description:\nOne continuous medium two-shot at crouching height, camera on the hiding characters' side of the crates. Both characters are separate and clearly visible to us, crouching on the stone floor beside each other. The closed crates stand beside and beyond them, screening them from the unseen guards. Their clothes and bodies remain outside the crates with natural contact and clear separation from the wooden surfaces. Maintain the painterly fantasy look of the references, dimensional forms, warm practical dungeon light and soft cool shadows. No additional visible people.\n0:00-0:03.0: Narciso leans toward the bard and whispers urgently in Brazilian Portuguese, in a quietly theatrical male voice: <d>[Portuguese] Me elogia pra ativar meu Elogio Certeiro.</d> His invisible body is suggested by the small movement of his clothes; his head never becomes visible.\n0:03.0-0:04.5: The bard looks toward the empty space above Narciso's collar and replies softly in Brazilian Portuguese: <d>[Portuguese] Beleza... elogiar o qu\u00ea?</d>\n0:04.5-0:05.16: They pause awkwardly, confused. The bard's expression stalls; Narciso's shoulders and empty sleeves droop slightly. Both remain crouching in their hiding place. No cut or title card.\n\noverall_soundscape:\nQuiet stone-dungeon room tone, faint torch crackle and a soft distant footstep. Only the two specified male voices, speaking sequentially without overlap. Speech remains clear and naturally timed. No subtitles or visible lettering.\n\nnon_diegetic_music:\nN/A. No music.\n"
+    },
+    "class_type": "PrimitiveStringMultiline",
+    "_meta": {
+      "title": "Input Text (Prompt)"
+    }
+  },
+  "115": {
+    "inputs": {
+      "aspect_ratio": "16:9 (Widescreen)",
+      "megapixels": 0.5,
+      "multiple": 32
+    },
+    "class_type": "ResolutionSelector",
+    "_meta": {
+      "title": "Resolution Selector (Size)"
+    }
+  },
+  "131": {
+    "inputs": {
+      "expression": "max(5, round(a * 24)) + (5 - (max(5, round(a * 24)) % 17)) % 17",
+      "values.a": [
+        "132",
+        0
+      ]
+    },
+    "class_type": "ComfyMathExpression",
+    "_meta": {
+      "title": "Math Expression"
+    }
+  },
+  "132": {
+    "inputs": {
+      "value": 5
+    },
+    "class_type": "PrimitiveFloat",
+    "_meta": {
+      "title": "Float (Duration)"
+    }
+  },
+  "119": {
+    "inputs": {
+      "vae_name": "minimax_h3_video_vae_int8_convrot.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "Load VAE"
+    }
+  },
+  "120": {
+    "inputs": {
+      "vae_name": "minimax_h3_audio_vae_fp32.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "Load VAE"
+    }
+  },
+  "139": {
+    "inputs": {
+      "image": "DirectorsCut/RPG_Ref2VA_Test/01_dungeon.png"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "Load Image"
+    }
+  },
+  "137": {
+    "inputs": {
+      "image": "DirectorsCut/RPG_Ref2VA_Test/02_narciso.png"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "Load Image"
+    }
+  },
+  "147": {
+    "inputs": {
+      "image": "DirectorsCut/RPG_Ref2VA_Test/03_bardo.png"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "Load Image"
+    }
+  },
+  "123": {
+    "inputs": {
+      "sampler_name": "euler"
+    },
+    "class_type": "KSamplerSelect",
+    "_meta": {
+      "title": "KSamplerSelect"
+    }
+  },
+  "124": {
+    "inputs": {
+      "scheduler": "simple",
+      "denoise": 1,
+      "model": [
+        "143",
+        0
+      ],
+      "steps": 8
+    },
+    "class_type": "BasicScheduler",
+    "_meta": {
+      "title": "BasicScheduler"
+    }
+  },
+  "121": {
+    "inputs": {
+      "samples": [
+        "125",
+        0
+      ],
+      "vae": [
+        "120",
+        0
+      ]
+    },
+    "class_type": "VAEDecodeAudio",
+    "_meta": {
+      "title": "VAE Decode Audio"
+    }
+  }
+}

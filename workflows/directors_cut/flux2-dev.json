@@ -1,0 +1,263 @@
+{
+  "46": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "image_flux2_input_image.png"
+    }
+  },
+  "45": {
+    "class_type": "ImageScaleToTotalPixels",
+    "inputs": {
+      "upscale_method": "lanczos",
+      "megapixels": 1,
+      "resolution_steps": 1,
+      "image": [
+        "46",
+        0
+      ]
+    }
+  },
+  "68_48": {
+    "class_type": "Flux2Scheduler",
+    "inputs": {
+      "steps": [
+        "68_93",
+        0
+      ],
+      "width": [
+        "68_72",
+        0
+      ],
+      "height": [
+        "68_72",
+        1
+      ]
+    }
+  },
+  "68_22": {
+    "class_type": "BasicGuider",
+    "inputs": {
+      "model": [
+        "68_92",
+        0
+      ],
+      "conditioning": [
+        "68_43",
+        0
+      ]
+    }
+  },
+  "68_16": {
+    "class_type": "KSamplerSelect",
+    "inputs": {
+      "sampler_name": "euler"
+    }
+  },
+  "68_10": {
+    "class_type": "VAELoader",
+    "inputs": {
+      "vae_name": "full_encoder_small_decoder.safetensors"
+    }
+  },
+  "68_13": {
+    "class_type": "SamplerCustomAdvanced",
+    "inputs": {
+      "noise": [
+        "68_25",
+        0
+      ],
+      "guider": [
+        "68_22",
+        0
+      ],
+      "sampler": [
+        "68_16",
+        0
+      ],
+      "sigmas": [
+        "68_48",
+        0
+      ],
+      "latent_image": [
+        "68_47",
+        0
+      ]
+    }
+  },
+  "68_6": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "The woman is wearing a small pale yellow knitted beanie, with a white fabric patch on the front right, embroidered with big gray text \u201cFLUX.2 COMFY.\u201d Keep the face",
+      "clip": [
+        "68_38",
+        0
+      ]
+    }
+  },
+  "68_38": {
+    "class_type": "CLIPLoader",
+    "inputs": {
+      "clip_name": "mistral_3_small_flux2_bf16.safetensors",
+      "type": "flux2",
+      "device": "default"
+    }
+  },
+  "68_25": {
+    "class_type": "RandomNoise",
+    "inputs": {
+      "noise_seed": 342971778941390
+    }
+  },
+  "68_8": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": [
+        "68_13",
+        0
+      ],
+      "vae": [
+        "68_10",
+        0
+      ]
+    }
+  },
+  "68_26": {
+    "class_type": "FluxGuidance",
+    "inputs": {
+      "guidance": 4,
+      "conditioning": [
+        "68_6",
+        0
+      ]
+    }
+  },
+  "68_89": {
+    "class_type": "LoraLoaderModelOnly",
+    "inputs": {
+      "lora_name": "Flux_2-Turbo-LoRA_comfyui.safetensors",
+      "strength_model": 1,
+      "model": [
+        "68_12",
+        0
+      ]
+    }
+  },
+  "68_12": {
+    "class_type": "UNETLoader",
+    "inputs": {
+      "unet_name": "flux2_dev_fp8mixed.safetensors",
+      "weight_dtype": "default"
+    }
+  },
+  "68_92": {
+    "class_type": "ComfySwitchNode",
+    "inputs": {
+      "switch": [
+        "68_94",
+        0
+      ],
+      "on_false": [
+        "68_12",
+        0
+      ],
+      "on_true": [
+        "68_89",
+        0
+      ]
+    }
+  },
+  "68_90": {
+    "class_type": "PrimitiveInt",
+    "inputs": {
+      "value": 8
+    }
+  },
+  "68_91": {
+    "class_type": "PrimitiveInt",
+    "inputs": {
+      "value": 20
+    }
+  },
+  "68_93": {
+    "class_type": "ComfySwitchNode",
+    "inputs": {
+      "switch": [
+        "68_94",
+        0
+      ],
+      "on_false": [
+        "68_91",
+        0
+      ],
+      "on_true": [
+        "68_90",
+        0
+      ]
+    }
+  },
+  "68_47": {
+    "class_type": "EmptyFlux2LatentImage",
+    "inputs": {
+      "width": [
+        "68_72",
+        0
+      ],
+      "height": [
+        "68_72",
+        1
+      ],
+      "batch_size": 1
+    }
+  },
+  "68_72": {
+    "class_type": "GetImageSize",
+    "inputs": {
+      "image": [
+        "45",
+        0
+      ]
+    }
+  },
+  "68_44": {
+    "class_type": "VAEEncode",
+    "inputs": {
+      "pixels": [
+        "45",
+        0
+      ],
+      "vae": [
+        "68_10",
+        0
+      ]
+    }
+  },
+  "68_43": {
+    "class_type": "ReferenceLatent",
+    "inputs": {
+      "conditioning": [
+        "68_26",
+        0
+      ],
+      "latent": [
+        "68_44",
+        0
+      ]
+    }
+  },
+  "68_94": {
+    "class_type": "PrimitiveBoolean",
+    "inputs": {
+      "value": false
+    }
+  },
+  "9": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "filename_prefix": "Flux2",
+      "images": [
+        "68_8",
+        0
+      ]
+    }
+  }
+}

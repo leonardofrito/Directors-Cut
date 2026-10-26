@@ -1,0 +1,46 @@
+/* Card Beam adaptation: a light-only horizontal beam moves vertically.
+   Visual source: https://codepen.io/codingstella/pen/RNrWeEx
+   Independent CSS/DOM implementation; bounded CSS particles, no canvas or redraw timer. */
+@property --beam-direction{syntax:'<number>';inherits:true;initial-value:-1}
+@property --beam-reveal{syntax:'<percentage>';inherits:true;initial-value:0%}
+.take[data-active=true] .take-placeholder,.generation-preview.generation-live{position:relative;isolation:isolate;overflow:hidden;background:linear-gradient(165deg,#ffffff06,transparent 40%,#ffffff02),var(--panel)!important;box-shadow:inset 0 1px #ffffff20,inset 1px 0 #ffffff08;animation:none}
+.take[data-active=true] .take-placeholder:before,.take[data-active=true] .take-placeholder:after,.generation-live:before,.generation-live:after{content:none;animation:none}
+.take .generation-beam,.generation-beam,.generation-beam>span{padding:0}
+.generation-beam{container-type:size;position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:-1;--beam-reveal:-5%;--beam-leg:4.8s;animation:card-beam-reveal var(--beam-leg) cubic-bezier(.4,0,.6,1) infinite alternate,beam-tail-direction calc(var(--beam-leg) * 2) steps(1,end) infinite;animation-delay:var(--beam-phase,0s)}
+.generation-live>.generation-beam{--beam-leg:6.4s}
+.generation-beam-core{position:absolute;top:var(--beam-reveal);left:0;right:0;height:2px;background:linear-gradient(90deg,#c8ff00b3,#edffb0 50%,#c8ff00b3);box-shadow:0 0 9px #c8ff0055,0 0 23px #c4d41126;transform:translateY(-50%)}
+.generation-beam-halo{position:absolute;top:var(--beam-reveal);left:0;right:0;height:55%;max-height:200px;transform:translateY(-100%);background:linear-gradient(180deg,transparent,#c4d41106 55%,#c4d41126 96%,#c4d41105)}
+
+.take:nth-child(4n+2){--beam-phase:-1.8s}.take:nth-child(4n+3){--beam-phase:-3.6s}.take:nth-child(4n+4){--beam-phase:-5.4s}
+@keyframes card-beam-reveal{from{--beam-reveal:-5%}to{--beam-reveal:105%}}
+@media(prefers-reduced-motion:reduce){.generation-beam{animation:none;--beam-reveal:50%}}
+
+/* Small rising particles; a second masked layer adds glow exactly across the beam. */
+.generation-beam-particles{position:absolute;inset:0;overflow:hidden}
+.generation-beam-particles>i{position:absolute;bottom:-12px;width:var(--spark-size);height:calc(var(--spark-size) * 1.6);border-radius:50%;background:#c4d41180;animation:beam-spark-rise var(--spark-duration) linear infinite;animation-delay:var(--spark-delay);opacity:0}
+.generation-beam-crossings{mask-image:linear-gradient(180deg,transparent calc(var(--beam-reveal) - 5%),#000 calc(var(--beam-reveal) - 1%),#000 calc(var(--beam-reveal) + 2%),transparent calc(var(--beam-reveal) + 7%))}
+.generation-beam-crossings>i{background:#efffb1;box-shadow:0 0 5px #c8ff00c0,0 0 10px #c8ff0055}
+@keyframes beam-spark-rise{0%{transform:translate(0,0);opacity:0}8%{opacity:.65}82%{opacity:.65}100%{transform:translate(var(--spark-drift),calc(-100cqh - 28px));opacity:0}}
+@media(prefers-reduced-motion:reduce){.generation-beam-particles{display:none}}
+
+/* Direction flips only at the scan turn: the wake always trails the moving light. */
+@keyframes beam-tail-direction{0%{--beam-direction:-1}50%{--beam-direction:1}100%{--beam-direction:-1}}
+.generation-beam-trail,.generation-beam-bursts{position:absolute;left:0;right:0;top:var(--beam-reveal);height:0;--wake-depth:clamp(28px,28cqh,210px);--wake-spread:clamp(12px,8cqw,100px);--burst-depth:clamp(18px,12cqh,100px)}
+.generation-beam-trail>i,.generation-beam-bursts>i{position:absolute;top:0;width:var(--flight-size);height:var(--flight-length);border-radius:50%;background:#d7ff4b;opacity:0;animation-delay:var(--flight-delay)}
+.generation-beam-trail>i{box-shadow:0 0 4px #c8ff0055;animation:beam-dust-pull var(--flight-duration) cubic-bezier(.45,0,.85,.6) infinite;animation-delay:var(--flight-delay)}
+.generation-beam-bursts>i{background:#efffb8;box-shadow:0 0 4px #c8ff00b3,0 0 9px #c8ff0038;animation:beam-line-burst var(--flight-duration) cubic-bezier(.1,.65,.3,1) infinite;animation-delay:var(--flight-delay)}
+@keyframes beam-dust-pull{
+  0%{transform:translate(calc(var(--wake-spread) * var(--scatter-factor)),calc(var(--beam-direction) * var(--wake-depth) * var(--distance-factor))) rotate(var(--flight-angle));opacity:0}
+  18%{opacity:.2}
+  38%{transform:translate(calc(var(--wake-spread) * var(--scatter-factor) * -.5),calc(var(--beam-direction) * var(--wake-depth) * .65)) rotate(calc(var(--flight-angle) * -1));opacity:.35}
+  68%{transform:translate(calc(var(--wake-spread) * var(--scatter-factor) * .32),calc(var(--beam-direction) * var(--wake-depth) * .25)) rotate(var(--flight-angle));opacity:.65}
+  91%{opacity:.95}
+  100%{transform:translate(0,0) rotate(0deg) scale(.4);opacity:0}
+}
+@keyframes beam-line-burst{
+  0%{transform:translate(0,0) scale(.5);opacity:0}
+  8%{opacity:1}
+  35%{transform:translate(calc(var(--wake-spread) * var(--scatter-factor) * .45),calc(var(--burst-depth) * var(--eject-direction) * .4)) rotate(var(--flight-angle));opacity:.8}
+  100%{transform:translate(calc(var(--wake-spread) * var(--scatter-factor)),calc(var(--burst-depth) * var(--eject-direction))) rotate(calc(var(--flight-angle) * 2)) scale(.2);opacity:0}
+}
+@media(prefers-reduced-motion:reduce){.generation-beam-trail,.generation-beam-bursts{display:none}}

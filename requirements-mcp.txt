@@ -1,0 +1,3 @@
+-r requirements.txt
+# Optional assistant bridge; the local studio does not import this dependency.
+mcp==1.30.0

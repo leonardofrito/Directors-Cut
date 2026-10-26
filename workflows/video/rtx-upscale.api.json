@@ -1,0 +1,58 @@
+{
+  "rtx_load": {
+    "class_type": "LoadVideo",
+    "inputs": {
+      "file": "input.mp4"
+    }
+  },
+  "rtx_components": {
+    "class_type": "GetVideoComponents",
+    "inputs": {
+      "video": [
+        "rtx_load",
+        0
+      ]
+    }
+  },
+  "rtx_upscale": {
+    "class_type": "RTXVideoSuperResolution",
+    "inputs": {
+      "images": [
+        "rtx_components",
+        0
+      ],
+      "resize_type": "scale by multiplier",
+      "resize_type.scale": 2.0,
+      "quality": "ULTRA"
+    }
+  },
+  "rtx_create": {
+    "class_type": "CreateVideo",
+    "inputs": {
+      "images": [
+        "rtx_upscale",
+        0
+      ],
+      "audio": [
+        "rtx_components",
+        1
+      ],
+      "fps": [
+        "rtx_components",
+        2
+      ]
+    }
+  },
+  "rtx_save": {
+    "class_type": "SaveVideo",
+    "inputs": {
+      "video": [
+        "rtx_create",
+        0
+      ],
+      "filename_prefix": "video/DirectorsCut/RTX",
+      "format": "mp4",
+      "format.codec": "h264"
+    }
+  }
+}

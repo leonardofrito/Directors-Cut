@@ -1,0 +1,19 @@
+/* Calmer tactile sliders; ratio graphics stay explicitly green during the morph. */
+.ratio-choice-morph{background:var(--accent);border-color:var(--accent);box-shadow:0 0 9px #c4d41122;opacity:1}
+.video-ratio-shape{color:var(--accent);border-color:#c4d41180;background:#c4d4110b}
+.video-ratio-option[aria-pressed=true] .video-ratio-shape{background:var(--accent);border-color:var(--accent);box-shadow:0 0 8px #c4d41115}
+.video-ratio-option.press-feedback:after{display:none}
+.video-ratio-option{transition:border-color .18s,color .18s,transform .18s}.video-ratio-option:hover{transform:translateY(-1px)}
+.video-slider-choices>input[type=range]{height:32px;transition:--slider-progress .16s cubic-bezier(.2,.7,.2,1)}
+.video-slider-choices>input[type=range]:active{transition:none}
+.video-slider-choices>input[type=range]::-webkit-slider-runnable-track{height:3px;background:linear-gradient(90deg,var(--accent) 0 var(--slider-progress),#ffffff22 var(--slider-progress) 100%);box-shadow:0 1px #ffffff0c;border-radius:99px}
+.video-slider-choices>input[type=range]::-webkit-slider-thumb{width:16px;height:16px;margin-top:-6.5px;border:2px solid var(--accent);background:#11140b;box-shadow:inset 0 1px #ffffff30,0 2px 5px #0007;transition:transform .22s cubic-bezier(.2,.8,.2,1),box-shadow .22s}
+.video-slider-choices>input[type=range]:hover::-webkit-slider-thumb{background:#172009;box-shadow:inset 0 1px #ffffff30,0 0 0 3px #c4d4110d}
+.video-slider-choices>input[type=range]:active::-webkit-slider-thumb{transform:scale(1.12);background:#1d280a;box-shadow:0 0 0 4px #c4d41114,0 0 12px #c4d4111c}
+.video-slider-choices>input[type=range]::-moz-range-track{height:3px;background:#ffffff22}.video-slider-choices>input[type=range]::-moz-range-progress{height:3px;background:var(--accent)}
+.video-slider-choices>input[type=range]::-moz-range-thumb{width:16px;height:16px;border:2px solid var(--accent);background:#11140b;box-shadow:inset 0 1px #ffffff30,0 2px 5px #0007;transition:transform .22s,box-shadow .22s}
+.video-slider-choices>input[type=range]:hover::-moz-range-thumb{background:#172009;box-shadow:0 0 0 3px #c4d4110d}
+.video-slider-choices>input[type=range]:active::-moz-range-thumb{transform:scale(1.12);background:#1d280a;box-shadow:0 0 0 4px #c4d41114}
+.video-slider-choices>output{background:var(--glass);border-color:var(--border);color:var(--accent);box-shadow:inset 0 1px #ffffff0c}
+.video-slider-scale>span{transition:color .15s,opacity .15s}.video-slider-scale>.nearest-tick{transform:translateX(-50%)}
+@media(prefers-reduced-motion:reduce){.video-ratio-option,.video-slider-choices>input[type=range]{transition:none}.video-ratio-option:hover{transform:none}}

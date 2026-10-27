@@ -14,7 +14,7 @@ Create assets and reference-driven video with your own ComfyUI.
 
 Native macOS and Linux packages are not published yet. Their links above download source code, not an EXE or a ready-made app. The Windows build is currently unsigned.
 
-Windows may show an unknown-publisher or SmartScreen warning for this release. Use the official download and its published checksums. Signing is still pending; see [Windows signing status](https://github.com/leonardofrito/Directors-Cut/blob/main/docs/windows-signing.md).
+Windows may show an unknown-publisher or SmartScreen warning because this release is not digitally signed yet.
 
 ## Before you start
 

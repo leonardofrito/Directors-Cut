@@ -6,7 +6,18 @@ from openframe.version import VERSION
 OUTPUT=ROOT/'release'/VERSION
 STAGE=ROOT/'.runtime/package-stage'
 
-PUBLIC_DOCS=['comfy-connection.md','model-downloads.md','model-setup.md','mcp.md','video-workspace.md','image-direction.md','asset-library.md','editing-prompts.md','competition-rules.md','release-readiness.md']
+PUBLIC_DOCS=['comfy-connection.md','model-downloads.md','model-setup.md','mcp.md','video-workspace.md','image-direction.md','asset-library.md','editing-prompts.md','competition-rules.md','release-readiness.md','windows-signing.md']
+
+def sign_windows(executable,required=False,verify_only=False):
+    thumbprint=os.environ.get('DIRECTORSCUT_SIGNING_THUMBPRINT','').strip()
+    if not thumbprint and not verify_only:
+        if required:raise RuntimeError('A trusted Windows signing identity is required; configure DIRECTORSCUT_SIGNING_THUMBPRINT first.')
+        print('Windows EXE is unsigned: no signing identity configured.')
+        return
+    command=['powershell.exe','-NoProfile','-NonInteractive','-File',str(ROOT/'tools/sign_windows.ps1'),'-File',str(executable)]
+    if verify_only:command+=['-VerifyOnly']
+    else:command+=['-CertificateThumbprint',thumbprint]
+    subprocess.run(command,cwd=ROOT,check=True)
 def dependency_notices():
     from packaging.requirements import Requirement
     pending=['aiohttp','comfy-sdk','comfy-api-proxy','Pillow','psutil'];seen=set();sections=[]
@@ -67,6 +78,7 @@ def source_archive():
     for folder in ['openframe','tools']:
         files.extend(p for p in (ROOT/folder).rglob('*.py') if '__pycache__' not in p.parts)
     with zipfile.ZipFile(target,'w',zipfile.ZIP_DEFLATED) as archive:
+        archive.write(ROOT/'tools/sign_windows.ps1','tools/sign_windows.ps1')
         for path in files:
             if path.is_relative_to(ROOT/'tools') and path.name not in ['build_release.py','smoke_release.py','mcp_config.py','update_prompt_guides.py']:continue
             archive.write(path,path.relative_to(ROOT))
@@ -78,7 +90,7 @@ def source_archive():
             archive.write(ROOT/'docs'/name,'docs/'+name)
         for name in ['directors-cut-banner.png','directors-cut-assets.png','directors-cut-video.png']:
             archive.write(ROOT/'docs/images'/name,'docs/images/'+name)
-        for name in ['test_core.py','test_engine_connection.py','test_model_downloads.py','test_release.py']:
+        for name in ['test_core.py','test_engine_connection.py','test_model_downloads.py','test_release.py','test_windows_signing.py']:
             path=ROOT/'tests'/name
             if path.exists():archive.write(path,'tests/'+name)
         for path in (ROOT/'packaging').glob('*'):
@@ -106,7 +118,8 @@ def windows_archive():
 
 def main():
     global STAGE
-    parser=argparse.ArgumentParser();parser.add_argument('--source-only',action='store_true');parser.add_argument('--prepare-only',action='store_true');args=parser.parse_args()
+    parser=argparse.ArgumentParser();parser.add_argument('--source-only',action='store_true');parser.add_argument('--prepare-only',action='store_true');parser.add_argument('--require-windows-signing',action='store_true');args=parser.parse_args()
+    if args.require_windows_signing and platform.system()!='Windows':parser.error('--require-windows-signing is Windows-only.')
     OUTPUT.mkdir(parents=True,exist_ok=True);(ROOT/'.runtime').mkdir(exist_ok=True)
     STAGE=Path(tempfile.mkdtemp(prefix='package-stage-',dir=ROOT/'.runtime'));active=stage()
     if args.prepare_only:print('Staged',len(active),'active previews');return
@@ -121,8 +134,11 @@ def main():
             command+=['--add-data',str(path)+':'+(path.name if path.is_dir() else '.')]
         command+=['--collect-all','comfy_api_proxy','--collect-all','comfy_sdk','--copy-metadata','comfy-api-proxy','--copy-metadata','comfy-sdk','--hidden-import','uvicorn.logging','--hidden-import','uvicorn.loops.auto','--hidden-import','uvicorn.protocols.http.auto','--hidden-import','uvicorn.protocols.websockets.auto','--hidden-import','uvicorn.lifespan.on','--exclude-module','torch','--exclude-module','pytest','--exclude-module','IPython','--exclude-module','mcp',str(ROOT/'app_entry.py')]
         subprocess.run(command,cwd=ROOT,check=True)
+        if system=='Windows':sign_windows(OUTPUT/(name+'.exe'),required=args.require_windows_signing)
         if system=='Darwin':
             app=OUTPUT/(name+'.app');subprocess.run(['ditto','-c','-k','--sequesterRsrc','--keepParent',str(app),str(OUTPUT/(name+'.zip'))],check=True)
+    if args.source_only and args.require_windows_signing:
+        sign_windows(OUTPUT/f'DirectorsCut-{VERSION}-windows-x64.exe',required=True,verify_only=True)
     source=source_archive();shutil.copy2(ROOT/'packaging/QUICKSTART.md',OUTPUT/'START-HERE.md');shutil.copy2(ROOT/'packaging/RELEASE-NOTES.md',OUTPUT/'RELEASE-NOTES.md');windows_archive();checksums()
     print('Release artifacts:',OUTPUT);print('Source:',source)
 if __name__=='__main__':main()

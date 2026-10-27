@@ -39,3 +39,7 @@ The application is MIT; model licenses and hardware requirements are separate.
 Choose/approve the public repository and release destination before publishing.
 Code signing, final demo/social post and competition submission are separate steps.
 The build workflow never publishes or posts automatically.
+
+## Windows publisher trust
+
+The current EXE is unsigned. See [Windows signing](../docs/windows-signing.md) for trusted certificate options and the local `--require-windows-signing` build/verification gate. Sign before creating the release archives and checksums. A valid signature does not guarantee immediate SmartScreen reputation. The GitHub candidate workflow remains unsigned until a signing provider is configured.

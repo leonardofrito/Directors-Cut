@@ -21,4 +21,6 @@ The MCP bridge and video enhancer are optional. End-to-end MCP host testing and 
 
 The current Windows binary is unsigned and labelled pre-release. Publishing the source does not complete those remaining steps.
 
+The build now supports verified Authenticode signing before ZIP/checksum creation, with a required-signing option. No trusted signing identity is configured and no signed release has been published. See [Windows signing](windows-signing.md).
+
 [Quick Start](../packaging/QUICKSTART.md) · [Connection setup](comfy-connection.md) · [Competition record](competition-rules.md)

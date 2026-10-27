@@ -1,3 +1,11 @@
+# 0.1.0-rc.3
+
+- Fresh installations now start with the app-managed official SDK proxy. A native ComfyUI server is no longer selected as an external SDK v2 endpoint by default.
+- Connection settings save validated data/model folders before attempting the generation connection. A failed proxy connection no longer discards the selected download folder.
+- Quoted Portable paths with spaces are accepted. Download destinations still require explicit shared-folder confirmation for remote engines.
+- Clearer repair instructions distinguish the ComfyUI address from an optional external SDK proxy address.
+- Windows build remains unsigned. No model recipes, weights or GPU generation changed.
+
 # 0.1.0-rc.2
 
 - Direct, resumable downloads for Qwen 2.1 GGUF and original H3 REF2VA GGUF.

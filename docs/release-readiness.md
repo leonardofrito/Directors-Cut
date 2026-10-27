@@ -2,7 +2,7 @@
 
 ## Available now
 
-[Director’s Cut 0.1.0-rc.2](https://github.com/leonardofrito/Directors-Cut/releases/tag/v0.1.0-rc.2) includes a standalone Windows x64 EXE, source package, Quick Start, release notes and checksums.
+[Director’s Cut 0.1.0-rc.3](https://github.com/leonardofrito/Directors-Cut/releases/tag/v0.1.0-rc.3) includes a standalone Windows x64 EXE, source package, Quick Start, release notes and checksums.
 
 The Windows EXE includes Python, the web app, 592 preset thumbnails, workflow graphs and prompt references. Model weights, personal projects and generated media are separate.
 

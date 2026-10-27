@@ -15,6 +15,47 @@ class EngineTests(unittest.IsolatedAsyncioTestCase):
   self.config=patch.object(cfg,'CONFIG',self.root/'engine.json');self.config.start()
  async def asyncTearDown(self):self.config.stop();self.environment.stop();self.temp.cleanup()
 
+ async def test_first_run_uses_managed_proxy_but_preserves_explicit_external(self):
+  with patch.object(cfg,'discover_paths',return_value=[]):
+   self.assertTrue(cfg.current()['proxy_managed'])
+   cfg.CONFIG.write_text(json.dumps({'proxy_managed':False,'proxy_url':'http://localhost:9191'}))
+   self.assertFalse(cfg.current()['proxy_managed'])
+
+ async def test_quoted_portable_path_with_spaces_is_normalized(self):
+  portable=self.root/'Real Documents'/'Portable'
+  models=portable/'ComfyUI/models';models.mkdir(parents=True)
+  data=cfg.validate_folders({'comfy_root':'"'+str(portable)+'"','models_dir':'"'+str(models)+'"'})
+  self.assertEqual(Path(data['models_dir']),models)
+  self.assertEqual(Path(data['comfy_root']),models.parent)
+
+ async def test_folder_save_survives_bad_external_proxy_without_engine_access(self):
+  connection=ec.Connection();connection.proxy_ready=AsyncMock(return_value=False)
+  studio=SimpleNamespace(connection=connection,connection_changing=False,queue_items=lambda:[],queue=asyncio.Queue(),model_downloads=SimpleNamespace(snapshot=lambda:[]))
+  app=web.Application();app['studio']=studio;app.router.add_put('/engine/folders',ec.save_folders)
+  cfg.apply_environment({'comfy_url':'http://127.0.0.1:1'})
+  settings={'comfy_url':'http://127.0.0.1:1','comfy_root':str(self.models.parent),'models_dir':str(self.models),'proxy_mode':'external','proxy_url':'http://127.0.0.1:1'}
+  async with TestClient(TestServer(app)) as client:
+   response=await client.put('/engine/folders',json=settings)
+   self.assertEqual(response.status,200)
+   self.assertEqual(cfg.downloads_directory(),self.models)
+   request=SimpleNamespace(app={'studio':studio},json=AsyncMock(return_value=settings))
+   with patch.object(cfg,'probe',new=AsyncMock(return_value={'online':True})),self.assertRaisesRegex(ValueError,'Turn off'):
+    await ec.save(request)
+  self.assertEqual(Path(cfg.load()['models_dir']),self.models)
+  # Simulate relaunch: the saved path does not depend on this process environment.
+  for key in ('OPENFRAME_MODELS_DIR','OPENFRAME_COMFY_ROOT'):os.environ.pop(key,None)
+  self.assertEqual(cfg.downloads_directory(),self.models)
+  connection.proxy_ready.assert_any_await(settings['proxy_url'])
+
+ async def test_folder_only_save_preserves_remote_and_active_download_guards(self):
+  studio=SimpleNamespace(connection=ec.Connection(),queue_items=lambda:[],queue=asyncio.Queue(),model_downloads=SimpleNamespace(snapshot=lambda:[]))
+  data={'comfy_url':'http://192.168.1.2:8188','models_dir':str(self.models)}
+  request=SimpleNamespace(app={'studio':studio},json=AsyncMock(return_value=data))
+  with self.assertRaisesRegex(ValueError,'shared models folder'):await ec.save_folders(request)
+  self.assertEqual(cfg.load(),{})
+  studio.model_downloads.snapshot=lambda:[{'status':'downloading'}]
+  with self.assertRaisesRegex(ValueError,'Pause model downloads'):await ec.save_folders(request)
+
  async def test_portable_manual_and_desktop_on_three_platforms(self):
   for system in ('Windows','Darwin','Linux'):
    with self.subTest(system=system):

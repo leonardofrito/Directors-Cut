@@ -766,6 +766,7 @@ def create_app(shutdown_event=None):
     app.router.add_get('/api/engine', engine_connection.describe)
     app.router.add_get('/api/engine/discover', engine_connection.discover)
     app.router.add_post('/api/engine/test', engine_connection.probe)
+    app.router.add_put('/api/engine/folders', engine_connection.save_folders)
     app.router.add_put('/api/engine', engine_connection.save)
     app.router.add_post('/api/video/import/{kind}', import_video_file)
     app.router.add_get('/api/queue', studio.generation_queue)

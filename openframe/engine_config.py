@@ -21,8 +21,11 @@ def local(value):
  if host=='localhost':return True
  try:return ipaddress.ip_address(host).is_loopback
  except ValueError:return False
+def folder_path(value):
+ return Path(os.path.expandvars(str(value).strip().strip('"'))).expanduser().resolve()
+
 def normalize_root(value):
- path=Path(os.path.expandvars(str(value))).expanduser().resolve()
+ path=folder_path(value)
  if path.is_file():raise ValueError('Choose the ComfyUI data folder, not the Desktop executable.')
  if path.name.lower()=='models' and path.is_dir():path=path.parent
  for candidate in [path,path/'ComfyUI',path/'comfyui']:
@@ -75,7 +78,7 @@ def current():
  return {'comfy_url':os.environ.get('OPENFRAME_COMFY_URL',saved.get('comfy_url','http://127.0.0.1:8188')).rstrip('/'),
          'proxy_url':os.environ.get('COMFY_BASE_URL',saved.get('proxy_url','http://127.0.0.1:8189')).rstrip('/'),
          'comfy_root':root,'models_dir':os.environ.get('OPENFRAME_MODELS_DIR',saved.get('models_dir','')) or (found[0]['models_dir'] if found else str(Path(root)/'models') if root else ''),
-         'shared_filesystem':bool(saved.get('shared_filesystem',False)),'proxy_managed':bool(saved.get('proxy_managed',False))}
+         'shared_filesystem':bool(saved.get('shared_filesystem',False)),'proxy_managed':saved.get('proxy_managed',True) is not False}
 def apply_environment(settings):
  for key,env in [('comfy_url','OPENFRAME_COMFY_URL'),('proxy_url','COMFY_BASE_URL'),('comfy_root','OPENFRAME_COMFY_ROOT'),('models_dir','OPENFRAME_MODELS_DIR')]:
   if settings.get(key):os.environ[env]=settings[key]
@@ -83,15 +86,19 @@ def apply_environment(settings):
 def downloads_directory(settings=None):
  settings=settings or current()
  if not local(settings['comfy_url']) and not settings.get('shared_filesystem'):raise ValueError('Remote engine: configure a mounted shared models folder before downloading. Downloads run on the app server, not in your browser.')
- path=Path(settings['models_dir']).expanduser().resolve() if settings.get('models_dir') else None
+ path=folder_path(settings['models_dir']) if settings.get('models_dir') else None
  if path is None or not path.is_dir():raise ValueError('Choose an existing ComfyUI models folder in Connection settings.')
  return path
 
-def validate(data):
- cfg=current();cfg['comfy_url']=url(data.get('comfy_url',cfg['comfy_url']));cfg['shared_filesystem']=data.get('shared_filesystem',False) is True
+def validate_folders(data):
+ cfg=current();cfg['shared_filesystem']=data.get('shared_filesystem',cfg['shared_filesystem']) is True
  value=str(data.get('comfy_root','')).strip();cfg['comfy_root']=str(normalize_root(value)) if value else ''
- custom=str(data.get('models_dir','')).strip();cfg['models_dir']=str(Path(custom).expanduser().resolve()) if custom else (str(Path(cfg['comfy_root'])/'models') if cfg['comfy_root'] else '')
+ custom=str(data.get('models_dir','')).strip();cfg['models_dir']=str(folder_path(custom)) if custom else (str(Path(cfg['comfy_root'])/'models') if cfg['comfy_root'] else '')
  if cfg['models_dir'] and not Path(cfg['models_dir']).is_dir():raise ValueError('The models folder does not exist on the app server.')
+ return cfg
+
+def validate(data):
+ cfg=validate_folders(data);cfg['comfy_url']=url(data.get('comfy_url',cfg['comfy_url']))
  if data.get('proxy_mode','managed')=='external':cfg['proxy_url']=url(data.get('proxy_url',''));cfg['proxy_managed']=False
  else:cfg['proxy_managed']=True
  return cfg

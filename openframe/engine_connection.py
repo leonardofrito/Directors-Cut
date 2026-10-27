@@ -52,6 +52,17 @@ async def describe(request):
 async def discover(request):return web.json_response(await cfg.discover())
 async def probe(request):
  data=await request.json();return web.json_response(await cfg.probe(cfg.url(data.get('comfy_url',''))))
+async def save_folders(request):
+ studio=request.app['studio'];data=await request.json()
+ async with studio.connection.lock:
+  if studio.queue_items() or studio.queue.qsize():raise ValueError('Wait until the generation queue is idle before changing folders.')
+  if any(j['status'] in ('queued','downloading','verifying') for j in studio.model_downloads.snapshot()):raise ValueError('Pause model downloads before changing their destination.')
+  settings=cfg.validate_folders(data)
+  # A failed remote connection must not enable unconfirmed local downloads.
+  if settings['models_dir']:
+   cfg.downloads_directory({**settings,'comfy_url':cfg.url(data.get('comfy_url',settings['comfy_url']))})
+  write_json(cfg.CONFIG,settings);cfg.apply_environment(settings)
+  return web.json_response({'settings':settings,'folders_saved':True})
 async def save(request):
  studio=request.app['studio'];data=await request.json();settings=cfg.validate(data)
  async with studio.connection.lock:
@@ -71,7 +82,7 @@ async def save(request):
    if not check['online']:raise ValueError('Could not connect to ComfyUI: '+check.get('error',''))
    reuse=settings['comfy_url']==old['comfy_url'] and await studio.connection.proxy_ready(old['proxy_url'])
    if data.get('proxy_mode','managed')=='external':
-    if not await studio.connection.proxy_ready(settings['proxy_url']):raise ValueError('This address does not serve the Comfy SDK v2 API.')
+    if not await studio.connection.proxy_ready(settings['proxy_url']):raise ValueError('The SDK proxy address is not a Comfy SDK v2 endpoint. A normal ComfyUI address belongs in ComfyUI address. Turn off "Use an existing SDK proxy" so Director\'s Cut starts its official local proxy.')
    elif reuse:settings.update(proxy_url=old['proxy_url'],proxy_managed=old['proxy_managed'])
    else:new_process,new_log,base=await studio.connection.start_proxy(settings);settings.update(proxy_url=base,proxy_managed=True)
    from .provider import ComfyProvider

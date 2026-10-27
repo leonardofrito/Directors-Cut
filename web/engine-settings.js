@@ -5,7 +5,7 @@
  function form(settings){
   for(const key of ['comfy_url','comfy_root','models_dir','proxy_url'])byId('engine-'+key).value=settings[key]||'';
   byId('engine-shared').checked=Boolean(settings.shared_filesystem);
-  byId('engine-external').checked=!settings.proxy_managed;
+  byId('engine-external').checked=settings.proxy_managed===false;
   byId('engine-proxy-fields').hidden=!byId('engine-external').checked;
  }
  function values(){return Object.fromEntries([...['comfy_url','comfy_root','models_dir','proxy_url'].map(key=>[key,byId('engine-'+key).value.trim()]),['shared_filesystem',byId('engine-shared').checked],['proxy_mode',byId('engine-external').checked?'external':'managed']]);}
@@ -39,7 +39,14 @@
   byId('engine-detect').onclick=event=>action(event.currentTarget,discover);
   byId('engine-test').onclick=event=>action(event.currentTarget,async()=>{message('Testing…');const result=await api('/engine/test','POST',{comfy_url:values().comfy_url});hardware(result);message(result.online?'ComfyUI responded. Save connection to apply.':result.error,!result.online);});
   byId('engine-save').onclick=event=>action(event.currentTarget,async()=>{
-   message('Connecting…');const result=await api('/engine','PUT',values());form(result.settings);hardware(result);
+   const selected=values();message('Saving folders…');
+   await api('/engine/folders','PUT',selected);
+   await window.DirectorModelDownloads?.refresh();
+   message('Folders saved. Connecting…');
+   let result;
+   try{result=await api('/engine','PUT',selected);}
+   catch(error){message('Folders saved. Generation connection is not ready: '+error.message,true);return;}
+   form(result.settings);hardware(result);
    config=await api('/config');populateWorkflows();renderModels();window.DirectorModelDownloads?.refresh();
    message('Connection saved.');toast('ComfyUI connection updated.');
   });

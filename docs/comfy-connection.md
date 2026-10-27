@@ -30,6 +30,17 @@ started itself; existing ComfyUI and external proxy processes are never killed.
 Changing connections is blocked while generations or model downloads are active.
 MCP status/memory operations follow the studio's current connection.
 
+Fresh installations use the app-managed SDK proxy by default. The native ComfyUI
+address is not an SDK v2 proxy address; keep **Use an existing SDK proxy** off
+unless you intentionally run a separate official v2 proxy.
+
+Saving first persists the validated model/data folders independently, then attempts
+the generation connection. A proxy failure is reported as **Folders saved.
+Generation connection is not ready**; local model downloads can still use the saved
+folder while ComfyUI is offline or its proxy is being repaired. Active queues and
+downloads still block destination changes, and remote folders still require an
+explicit shared-filesystem confirmation. Quoted folder paths with spaces are accepted.
+
 ## Downloads
 
 Model selection does not download. A missing catalog entry gets an explicit

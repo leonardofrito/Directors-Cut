@@ -6,11 +6,11 @@ Create characters, props and locations, then bring them together in reference-dr
 
 | Platform | Available download |
 | --- | --- |
-| Windows x64 | [Download the EXE](https://github.com/leonardofrito/Directors-Cut/releases/download/v0.1.0-rc.2/DirectorsCut-0.1.0-rc.2-windows-x64.exe) — Python included |
-| macOS | [Download the source package](https://github.com/leonardofrito/Directors-Cut/releases/download/v0.1.0-rc.2/DirectorsCut-0.1.0-rc.2-source.zip) — native app not published yet |
-| Linux | [Download the source package](https://github.com/leonardofrito/Directors-Cut/releases/download/v0.1.0-rc.2/DirectorsCut-0.1.0-rc.2-source.zip) — native executable not published yet |
+| Windows x64 | [Download the EXE](https://github.com/leonardofrito/Directors-Cut/releases/download/v0.1.0-rc.3/DirectorsCut-0.1.0-rc.3-windows-x64.exe) — Python included |
+| macOS | [Download the source package](https://github.com/leonardofrito/Directors-Cut/releases/download/v0.1.0-rc.3/DirectorsCut-0.1.0-rc.3-source.zip) — native app not published yet |
+| Linux | [Download the source package](https://github.com/leonardofrito/Directors-Cut/releases/download/v0.1.0-rc.3/DirectorsCut-0.1.0-rc.3-source.zip) — native executable not published yet |
 
-[Quick Start](packaging/QUICKSTART.md) · [Release notes](https://github.com/leonardofrito/Directors-Cut/releases/tag/v0.1.0-rc.2)
+[Quick Start](packaging/QUICKSTART.md) · [Release notes](https://github.com/leonardofrito/Directors-Cut/releases/tag/v0.1.0-rc.3)
 
 A compatible ComfyUI installation and model files are required separately. The current Windows build is an unsigned release candidate.
 

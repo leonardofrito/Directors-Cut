@@ -61,7 +61,20 @@
     const legal=document.createElement('a');legal.href='/api/app/legal/third-party';legal.target='_blank';legal.rel='noopener';legal.textContent='Licenses';
     const folder=document.createElement('button');folder.type='button';folder.textContent='Open data folder';folder.onclick=()=>safe(()=>api('/app/open-data','POST',{}));
     footer.append(version,legal,folder);
-    if(app.can_quit){const quit=document.createElement('button');quit.type='button';quit.textContent='Quit app';quit.onclick=()=>safe(async()=>{if(project){if(window.DirectorVideo?.active)await DirectorVideo.save();else await saveNotes(false);}await api('/app/quit','POST',{});quit.disabled=true;quit.textContent='App closed';toast('Director’s Cut closed. You can close this tab.');});footer.append(quit);}
+    if(app.can_quit){
+     const quit=document.createElement('button');quit.type='button';quit.textContent='Quit app';
+     const quick=byId('quit-app');quick.hidden=false;
+     const exit=()=>safe(async()=>{
+      quit.disabled=true;quick.disabled=true;
+      try{
+       if(project){if(window.DirectorVideo?.active)await DirectorVideo.save();else await saveNotes(false);}
+       await api('/app/quit','POST',{});
+       quit.textContent='App closed';quick.querySelector('span').textContent='Closed';
+       toast('Director’s Cut closed. You can close this tab.');
+      }catch(error){quit.disabled=false;quick.disabled=false;throw error;}
+     });
+     quit.onclick=exit;quick.onclick=exit;footer.append(quit);
+    }
     byId('models-dialog').append(footer);
    }
    if(location.hash==='#setup'){

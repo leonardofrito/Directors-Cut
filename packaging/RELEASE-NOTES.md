@@ -1,3 +1,9 @@
+# 0.1.0-rc.4
+
+- Added a visible Quit button beside Engine settings. It uses the existing shutdown action and keeps the active-generation/download guards. Closing a browser tab still does not terminate the server automatically.
+- Removed the public .gitignore at the maintainer's request; local exclusion rules remain private. Previous commits contain only exclusion patterns, not environment values.
+- Audited the six previously published commits with Gitleaks, both published source archives, and bundled file inventories of both Windows EXEs. No credentials or private configuration/project files were detected. See docs/publication-audit.md for scope and limitations.
+
 # 0.1.0-rc.3
 
 - Fresh installations now start with the app-managed official SDK proxy. A native ComfyUI server is no longer selected as an external SDK v2 endpoint by default.

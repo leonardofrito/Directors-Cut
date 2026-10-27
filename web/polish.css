@@ -25,6 +25,11 @@ svg{flex:none}
 .project-picker>svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.8;color:var(--muted)}
 .engine-settings-button{border:1px solid var(--edge);border-radius:10px;gap:12px;padding:9px 11px;min-height:38px;background:#ffffff03}
 .engine-settings-button>svg{width:17px;height:17px;stroke:var(--muted);fill:none;stroke-width:1.5}
+.app-quit-button{display:inline-flex;align-items:center;justify-content:center;gap:7px;flex:none;min-height:38px;padding:8px 11px;border:1px solid var(--edge);border-radius:10px;background:#ffffff03;color:var(--text);font-size:12px}
+.app-quit-button svg{width:18px;height:18px;flex:none}
+.app-quit-button:hover:not(:disabled){color:var(--accent);border-color:#ffffff30}
+.app-quit-button[hidden]{display:none}
+@media(max-width:950px){.app-quit-button{padding:8px}.app-quit-button span{display:none}}
 .connection{display:flex;align-items:center;gap:7px;font-size:11px;color:var(--muted)}
 .connection:before{content:'';display:block;width:6px;height:6px;flex:none;border-radius:50%;background:#999999;margin:0}
 .connection.online{color:#c2d4c5}.connection.online:before{background:#8fce9d;box-shadow:0 0 0 3px #8fce9d12}

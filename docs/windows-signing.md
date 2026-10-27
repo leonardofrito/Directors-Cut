@@ -1,6 +1,6 @@
 # Windows signing
 
-The published **0.1.0-rc.3 Windows EXE is unsigned**. Authenticode signing has not been completed, and the download has not been certified or approved by Microsoft. The release process now supports signing when a real signing identity is available.
+The published **0.1.0-rc.4 Windows EXE is unsigned**. Authenticode signing has not been completed, and the download has not been certified or approved by Microsoft. The release process now supports signing when a real signing identity is available.
 
 ## Why Windows shows a warning
 
@@ -34,7 +34,7 @@ The build signs the completed Windows EXE using SHA-256 and an RFC 3161 SHA-256 
 Verify an already signed EXE without changing it:
 
 ```powershell
-powershell -NoProfile -File tools/sign_windows.ps1 -File release/0.1.0-rc.3/DirectorsCut-0.1.0-rc.3-windows-x64.exe -VerifyOnly
+powershell -NoProfile -File tools/sign_windows.ps1 -File release/0.1.0-rc.4/DirectorsCut-0.1.0-rc.4-windows-x64.exe -VerifyOnly
 ```
 
 The current unsigned release is expected to fail that check. For a cloud-signed EXE, place the returned signed file in the release directory, then run `python tools/build_release.py --source-only --require-windows-signing` on Windows to verify and regenerate archives/checksums without rebuilding or re-signing the executable. Publish the verified EXE and matching checksums together. Do not silently describe an unsigned download as signed.

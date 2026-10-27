@@ -6,7 +6,7 @@ from openframe.version import VERSION
 OUTPUT=ROOT/'release'/VERSION
 STAGE=ROOT/'.runtime/package-stage'
 
-PUBLIC_DOCS=['comfy-connection.md','model-downloads.md','model-setup.md','mcp.md','video-workspace.md','image-direction.md','asset-library.md','editing-prompts.md','competition-rules.md','release-readiness.md','windows-signing.md']
+PUBLIC_DOCS=['comfy-connection.md','model-downloads.md','model-setup.md','mcp.md','video-workspace.md','image-direction.md','asset-library.md','editing-prompts.md','competition-rules.md','release-readiness.md','windows-signing.md','publication-audit.md']
 
 def sign_windows(executable,required=False,verify_only=False):
     thumbprint=os.environ.get('DIRECTORSCUT_SIGNING_THUMBPRINT','').strip()

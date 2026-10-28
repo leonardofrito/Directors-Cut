@@ -52,6 +52,9 @@ async def serve(args):
                     return
         except (ClientError,ValueError,asyncio.TimeoutError):pass
     with socket.socket() as probe:
+        # Match aiohttp's POSIX listener so a just-closed connection's TIME_WAIT
+        # does not prevent reopening the app on the same port.
+        if os.name!='nt':probe.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)
         try:probe.bind((args.listen,args.port))
         except OSError:
             if explicit_port:raise

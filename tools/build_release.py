@@ -135,7 +135,7 @@ def main():
         for path in STAGE.iterdir():
             if path.name in ('app.ico','app.icns'):continue
             command+=['--add-data',str(path)+':'+(path.name if path.is_dir() else '.')]
-        command+=['--collect-all','comfy_api_proxy','--collect-all','comfy_sdk','--copy-metadata','comfy-api-proxy','--copy-metadata','comfy-sdk','--hidden-import','uvicorn.logging','--hidden-import','uvicorn.loops.auto','--hidden-import','uvicorn.protocols.http.auto','--hidden-import','uvicorn.protocols.websockets.auto','--hidden-import','uvicorn.lifespan.on','--exclude-module','torch','--exclude-module','pytest','--exclude-module','IPython','--exclude-module','mcp',str(ROOT/'app_entry.py')]
+        command+=['--collect-all','comfy_api_proxy','--collect-all','comfy_sdk','--copy-metadata','comfy-api-proxy','--copy-metadata','comfy-sdk','--exclude-module','torch','--exclude-module','pytest','--exclude-module','IPython','--exclude-module','mcp',str(ROOT/'app_entry.py')]
         subprocess.run(command,cwd=ROOT,check=True)
         if system=='Windows':sign_windows(OUTPUT/(name+'.exe'),required=args.require_windows_signing)
         if system=='Darwin':

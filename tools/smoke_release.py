@@ -18,7 +18,7 @@ async def main():
   if len(files)!=1:raise RuntimeError('Expected one native artifact, got '+str(files))
   command=[str(files[0])]
  with tempfile.TemporaryDirectory(prefix='directors-cut-package-') as tmp:
-  data=Path(tmp)/'persistent';data.mkdir();models=Path(tmp)/'ComfyUI/models';models.mkdir(parents=True)
+  data=Path(tmp).resolve()/'persistent';data.mkdir();models=Path(tmp).resolve()/'ComfyUI/models';models.mkdir(parents=True)
   async def stats(_):return web.json_response({'system':{'os':'package-test','ram_total':8*1024**3},'devices':[{'name':'CPU packaging fixture','type':'cpu','vram_total':0}]})
   async def empty_nodes(_):return web.json_response({})
   async def queue(_):return web.json_response({'queue_running':[],'queue_pending':[]})
@@ -77,4 +77,8 @@ async def main():
   finally:
    if process and process.returncode is None:process.terminate();await process.wait()
    log.close();await runner.cleanup()
+   if sys.exc_info()[0] is not None:
+    print((log_dir/'smoke-run.log').read_text(encoding='utf-8',errors='replace')[-12000:],file=sys.stderr)
+    for diagnostic in (data/'.runtime').glob('*.log'):
+     print(diagnostic.name+'\n'+diagnostic.read_text(encoding='utf-8',errors='replace')[-6000:],file=sys.stderr)
 if __name__=='__main__':asyncio.run(main())

@@ -10,7 +10,7 @@ from openframe import engine_config as cfg,engine_connection as ec,model_downloa
 
 class EngineTests(unittest.IsolatedAsyncioTestCase):
  async def asyncSetUp(self):
-  self.temp=tempfile.TemporaryDirectory();self.root=Path(self.temp.name);self.models=self.root/'ComfyUI/models';self.models.mkdir(parents=True)
+  self.temp=tempfile.TemporaryDirectory();self.root=Path(self.temp.name).resolve();self.models=self.root/'ComfyUI/models';self.models.mkdir(parents=True)
   self.environment=patch.dict(os.environ,{k:v for k,v in os.environ.items() if k not in ('OPENFRAME_COMFY_ROOT','OPENFRAME_MODELS_DIR','OPENFRAME_COMFY_URL','COMFY_BASE_URL')},clear=True);self.environment.start()
   self.config=patch.object(cfg,'CONFIG',self.root/'engine.json');self.config.start()
  async def asyncTearDown(self):self.config.stop();self.environment.stop();self.temp.cleanup()
@@ -60,7 +60,7 @@ class EngineTests(unittest.IsolatedAsyncioTestCase):
   for system in ('Windows','Darwin','Linux'):
    with self.subTest(system=system):
     home=self.root/system;home.mkdir();env={'APPDATA':str(home/'roaming'),'XDG_CONFIG_HOME':str(home/'config')}
-    data=home/'installed/comfyui';(data/'models').mkdir(parents=True);shared=home/'shared models';shared.mkdir()
+    data=home/'installed/ComfyUI';(data/'models').mkdir(parents=True);shared=home/'shared models';shared.mkdir()
     folder=cfg.desktop_dirs(home,system,env)[2];folder.mkdir(parents=True)
     (folder/'installations.json').write_text(json.dumps({'installations':[{'installPath':str(data.parent),'name':'Test Desktop','modelDirsPrimary':str(shared),'sourceId':'local'}]}))
     legacy=cfg.desktop_dirs(home,system,env)[0];legacy.mkdir(parents=True)

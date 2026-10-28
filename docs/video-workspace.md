@@ -4,6 +4,14 @@ Director’s Cut generates video through MiniMax H3 **REF2VA**, using reference 
 
 ## Model recipes
 
+### Optional SelfLift
+
+Video settings offer an opt-in **SelfLift** switch. Off keeps the existing recipe. On keeps the selected Original/VSA/Omni model and reference/audio conditioning, replacing only the sampler with `SelfLiftH3Sampler` and standard Euler at CFG 1. Eight sampling evaluations remain: four at half width/height and four at the selected output size. These are two resolution phases, not two sampling steps.
+
+An installed H3 latent upscaler is used with `rho=0` and unloaded after the lift. Without one, the node uses its experimental pixel-anchor route (`rho=0.6`, weights 1/1). High-resolution tiling stays off. Final-resolution steps retain their normal memory needs; no guaranteed memory fit, prompt-adherence improvement or quality equivalence is claimed. The H3 adaptation is experimental and is not validated by the SelfLift image-model paper. No GPU benchmark was run for this integration.
+
+Install its node through **Connection → Workflow nodes**, then restart ComfyUI. Source and parameters: [facok/comfyui-SelfLift](https://github.com/facok/comfyui-SelfLift).
+
 - **Omni** is the recommended local option. Its eight-step recipe uses native VSA without a separate acceleration LoRA. Omni REF variants are labelled unofficial.
 - **Original H3** retains the original eight-step REF2VA recipe and its acceleration LoRA.
 - **VSA** is an optional experimental variant of the original recipe.

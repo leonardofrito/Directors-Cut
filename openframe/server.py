@@ -26,7 +26,7 @@ from . import video
 from .model_install import import_video_file
 from . import model_downloads, engine_config, engine_connection
 from . import reference_uploads, motion_reference, audio_reference, project_cover, edit_presets, rtx_upscale
-from . import app_control
+from . import app_control, node_setup
 from .paths import DATA_ROOT
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -82,6 +82,7 @@ class Studio:
         self.audio_locks = {}
         self.upscale_locks = {}
         self.model_downloads = model_downloads.ModelDownloads()
+        self.node_setup = node_setup.NodeSetup(self)
 
     async def nodes(self):
         base = os.environ.get('OPENFRAME_COMFY_URL', 'http://127.0.0.1:8188')
@@ -185,10 +186,15 @@ class Studio:
         await self.connection.startup()
         self.provider = ComfyProvider()
         self.restore_queue()
+        prefs=node_setup.preferences()
+        if prefs.get('automatic'):
+            try:await self.node_setup.start(['kjnodes',*prefs.get('optional',[])])
+            except ValueError as exc:self.node_setup.job={'status':'blocked','message':str(exc)}
         worker = asyncio.create_task(self.worker())
         yield
         worker.cancel()
         await asyncio.gather(worker, return_exceptions=True)
+        await self.node_setup.close()
         await self.provider.close()
         await self.model_downloads.close()
         await self.connection.close()
@@ -285,7 +291,7 @@ class Studio:
                 online = True
         except Exception as exc:
             detail = str(exc)
-        return web.json_response(dict(rtx_upscale=rtx_upscale.availability(nodes, devices), styles=list(STYLE), cameras=CAMERAS, ratios=list(RATIOS), lenses=list(OPTICS), lighting=list(LIGHTING), films=list(FILM), grades=list(GRADE), lens_types=list(LENS_TYPES), sensors=list(SENSORS), focal_lengths=FOCAL_LENGTHS, light_colors=list(LIGHT_COLORS), palettes=PALETTES, film_palettes=FILM_PALETTES, f_stops=F_STOPS, legacy_camera_defaults={key: legacy_camera({'lens': key}) for key in OPTICS},
+        return web.json_response(dict(hardware=engine_config.hardware(getattr(self,'engine_system_stats',{})),rtx_upscale=rtx_upscale.availability(nodes, devices), styles=list(STYLE), cameras=CAMERAS, ratios=list(RATIOS), lenses=list(OPTICS), lighting=list(LIGHTING), films=list(FILM), grades=list(GRADE), lens_types=list(LENS_TYPES), sensors=list(SENSORS), focal_lengths=FOCAL_LENGTHS, light_colors=list(LIGHT_COLORS), palettes=PALETTES, film_palettes=FILM_PALETTES, f_stops=F_STOPS, legacy_camera_defaults={key: legacy_camera({'lens': key}) for key in OPTICS},
             image_edit_presets=edit_presets.choices(), preset_hints={'style': STYLE, 'camera': FRAMING, 'lens_type': LENS_TYPES, 'sensor': SENSORS, 'lighting': LIGHTING, 'light_color': LIGHT_COLORS, 'film': FILM, 'grade': GRADE}, preview_generation_enabled=False, preview_images=preview_images(), asset_categories=ASSET_CATEGORIES, character_categories=CATEGORIES, enhancer=enhancer_availability(nodes, 'qwen21'), loras=lora_availability(nodes), video=video.availability(nodes, vram_total), workflows=describe(nodes), output_dir=str(self.store.root), online=online, detail=detail))
 
     async def projects(self, request):
@@ -566,6 +572,8 @@ class Studio:
             return web.json_response(project)
 
     async def generate(self, request):
+        if self.node_setup.running:
+            raise ValueError('Wait until workflow node installation finishes before generating.')
         if self.connection_changing:
             raise ValueError("Engine connection is being changed. Try again in a moment.")
         data = await request.json()
@@ -764,6 +772,9 @@ def create_app(shutdown_event=None):
     app.router.add_post('/api/models/downloads/{model}/cancel', model_downloads.cancel)
     app.router.add_get('/api/config', studio.config)
     app.router.add_get('/api/engine', engine_connection.describe)
+    app.router.add_get('/api/engine/nodes', node_setup.describe)
+    app.router.add_put('/api/engine/nodes', node_setup.save)
+    app.router.add_post('/api/engine/nodes/install', node_setup.install)
     app.router.add_get('/api/engine/discover', engine_connection.discover)
     app.router.add_post('/api/engine/test', engine_connection.probe)
     app.router.add_put('/api/engine/folders', engine_connection.save_folders)
@@ -797,7 +808,7 @@ def create_app(shutdown_event=None):
     async def static(request):
         return web.FileResponse(ROOT / 'web' / request.match_info.get('asset', 'index.html'))
     app.router.add_get('/', static)
-    app.router.add_get('/{asset:app.js|player.js|video.js|workspace-nav.js|dropdowns.js|style.css|icons.js|library.js|polish.js|polish.css|motion.js|motion.css|model-downloads.js|engine-settings.js}', static)
+    app.router.add_get('/{asset:app.js|player.js|video.js|workspace-nav.js|dropdowns.js|style.css|icons.js|library.js|polish.js|polish.css|motion.js|motion.css|model-downloads.js|engine-settings.js|node-setup.js}', static)
     app.router.add_static('/assets', ROOT / 'web/assets')
     return app
 

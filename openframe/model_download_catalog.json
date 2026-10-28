@@ -1,5 +1,5 @@
 {
-  "verified_on": "2026-10-26",
+  "verified_on": "2026-10-27",
   "models": [
     {
       "id": "qwen-diff-bf16",
@@ -627,7 +627,7 @@
       "id": "h3-enhancer-qwen35-4b-bf16",
       "scope": "video",
       "role": "enhancer",
-      "variant": "Qwen3.5 4B \u00b7 BF16",
+      "variant": "Qwen3.5 4B BF16 \u00b7 Images + Video",
       "repo": "Comfy-Org/Qwen3.5",
       "path": "text_encoders/qwen3.5_4b_bf16.safetensors",
       "filename": "qwen3.5_4b_bf16.safetensors",
@@ -638,7 +638,99 @@
       "note": "Optional local video prompt enhancer; vision requires compatible native TextGenerate nodes.",
       "aliases": [],
       "source": "https://huggingface.co/Comfy-Org/Qwen3.5",
-      "revision": "5d50a2252bf1bcd49e5fee9b5f296986d442682b"
+      "revision": "5d50a2252bf1bcd49e5fee9b5f296986d442682b",
+      "shared": true
+    },
+    {
+      "id": "qwen-encoder-gguf-vision",
+      "scope": "qwen21",
+      "role": "vision",
+      "variant": "Vision companion",
+      "repo": "Qwen/Qwen3-VL-8B-Instruct-GGUF",
+      "path": "mmproj-Qwen3VL-8B-Instruct-F16.gguf",
+      "filename": "mmproj-Qwen3VL-8B-Instruct-F16.gguf",
+      "folder": "text_encoders",
+      "size": 1159029824,
+      "sha256": "ca524100ebf825c9a870db1c580d03879e0da0ab2541697e2458e64891cf9d38",
+      "revision": "f982a07559d4a2f6c8744d840bf6fccab30eea96",
+      "unofficial": true,
+      "note": "",
+      "aliases": [],
+      "source": "https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct-GGUF"
+    },
+    {
+      "id": "qwen-encoder-gguf-q4_k_m",
+      "scope": "qwen21",
+      "role": "encoder",
+      "variant": "GGUF Q4_K_M",
+      "repo": "Qwen/Qwen3-VL-8B-Instruct-GGUF",
+      "path": "Qwen3VL-8B-Instruct-Q4_K_M.gguf",
+      "filename": "Qwen3VL-8B-Instruct-Q4_K_M.gguf",
+      "folder": "text_encoders",
+      "size": 5027784800,
+      "sha256": "67d1659bfe71b89d50b45a4ad1a9e5b997e5bb16ce5da66a6a6167abd569e9e2",
+      "revision": "f982a07559d4a2f6c8744d840bf6fccab30eea96",
+      "unofficial": true,
+      "note": "Includes the required vision companion. Requires an updated leejet/ComfyUI-GGUF with Qwen3-VL vision support. Community integration; inference not verified.",
+      "aliases": [],
+      "source": "https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct-GGUF",
+      "dependencies": [
+        "qwen-encoder-gguf-vision"
+      ]
+    },
+    {
+      "id": "qwen-encoder-gguf-q8_0",
+      "scope": "qwen21",
+      "role": "encoder",
+      "variant": "GGUF Q8_0",
+      "repo": "Qwen/Qwen3-VL-8B-Instruct-GGUF",
+      "path": "Qwen3VL-8B-Instruct-Q8_0.gguf",
+      "filename": "Qwen3VL-8B-Instruct-Q8_0.gguf",
+      "folder": "text_encoders",
+      "size": 8709519456,
+      "sha256": "0d264b3941185d00a74f75c4245521dae088ff1efc90ab8d1754e83f5844adb0",
+      "revision": "f982a07559d4a2f6c8744d840bf6fccab30eea96",
+      "unofficial": true,
+      "note": "Includes the required vision companion. Requires an updated leejet/ComfyUI-GGUF with Qwen3-VL vision support. Community integration; inference not verified.",
+      "aliases": [],
+      "source": "https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct-GGUF",
+      "dependencies": [
+        "qwen-encoder-gguf-vision"
+      ]
+    },
+    {
+      "id": "h3-encoder-gguf-q2_k_m",
+      "scope": "h3",
+      "role": "encoder",
+      "variant": "GGUF Q2_K_M",
+      "repo": "leejet/MiniMax-H3-GGUF",
+      "path": "qwen3vl_32b_minimax_h3-Q2_K_M.gguf",
+      "filename": "qwen3vl_32b_minimax_h3-Q2_K_M.gguf",
+      "folder": "text_encoders",
+      "size": 13102161024,
+      "sha256": "a8ccadccd57ef34c838ffb8a7da8368bb554721b2760274a1d3b0df63960b997",
+      "revision": "d9c4c6312b4728a68a15a35626d84775a6523783",
+      "unofficial": true,
+      "note": "Experimental: requires an H3-compatible GGUF encoder loader with full vision support. Download availability does not certify REF2VA reference fidelity.",
+      "aliases": [],
+      "source": "https://huggingface.co/leejet/MiniMax-H3-GGUF"
+    },
+    {
+      "id": "h3-encoder-gguf-q4_k_m",
+      "scope": "h3",
+      "role": "encoder",
+      "variant": "GGUF Q4_K_M",
+      "repo": "leejet/MiniMax-H3-GGUF",
+      "path": "qwen3vl_32b_minimax_h3-Q4_K_M.gguf",
+      "filename": "qwen3vl_32b_minimax_h3-Q4_K_M.gguf",
+      "folder": "text_encoders",
+      "size": 18218065024,
+      "sha256": "11e6efe70a57ce7f4838c47bdbd1a1c4b8ce10e2b7747f1b065990b70f4b05fc",
+      "revision": "d9c4c6312b4728a68a15a35626d84775a6523783",
+      "unofficial": true,
+      "note": "Experimental: requires an H3-compatible GGUF encoder loader with full vision support. Download availability does not certify REF2VA reference fidelity.",
+      "aliases": [],
+      "source": "https://huggingface.co/leejet/MiniMax-H3-GGUF"
     }
   ],
   "unavailable": [

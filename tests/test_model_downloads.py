@@ -34,6 +34,22 @@ class DownloadTests(unittest.IsolatedAsyncioTestCase):
   with patch.object(md.aiohttp,'ClientSession',return_value=Session(b'xxxx')):
    await self.manager.start('test');await self.manager.tasks['test']
   self.assertFalse(md.destination(self.row).exists());self.assertEqual(self.manager.jobs['test']['status'],'failed')
+ async def test_encoder_download_waits_for_required_vision_companion(self):
+  companion={**self.row,'id':'vision','filename':'mmproj.gguf','folder':'text_encoders'}
+  self.row['dependencies']=['vision']
+  with patch.dict(md.BY_ID,{'vision':companion}),patch.object(md.aiohttp,'ClientSession',return_value=Session(b'abcd')):
+   await self.manager.start('test');await self.manager.tasks['test']
+   self.assertEqual(self.manager.jobs['vision']['status'],'installed')
+   self.assertEqual(self.manager.jobs['test']['status'],'installed')
+   self.assertTrue(md.destination(companion).is_file())
+ async def test_existing_encoder_is_preserved_while_adding_missing_companion(self):
+  companion={**self.row,'id':'vision','filename':'mmproj.gguf','folder':'text_encoders'}
+  target=md.destination(self.row);target.parent.mkdir();target.write_bytes(b'abcd');self.row['dependencies']=['vision']
+  session=Session(b'abcd')
+  with patch.dict(md.BY_ID,{'vision':companion}),patch.object(md.aiohttp,'ClientSession',return_value=session):
+   await self.manager.start('test');await self.manager.tasks['test']
+   self.assertEqual(len(session.urls),1);self.assertEqual(target.read_bytes(),b'abcd')
+   self.assertEqual(self.manager.jobs['test']['status'],'installed')
  async def test_existing_file_and_unknown_id_are_preserved(self):
   path=md.destination(self.row);path.parent.mkdir();path.write_bytes(b'existing')
   with self.assertRaises(ValueError):await self.manager.start('test')

@@ -7,7 +7,7 @@ from .catalog import names, prune
 from .provider import image_dimensions
 from .presets import RATIOS
 from .loras import validate_loras, attach_loras, availability as lora_availability
-from . import video_prompt
+from . import video_prompt, selflift
 from .video_mentions import bind_media_mentions
 
 ROOT = Path(__file__).resolve().parent.parent / 'workflows/video'
@@ -15,7 +15,7 @@ PRESETS = {'original': 'H3_REF2VA_8step_Original.api.json', 'vsa': 'H3_REF2VA_8s
            'fast-omni': 'FastH3_OmniRef_8step.api.json'}
 MODEL_FIELDS = {
     '127': ('Video model', 'unet_name', r'minimax.*h3.*ref2va.*\.safetensors$'),
-    '128': ('H3 text encoder', 'clip_name', r'qwen3vl_32b.*minimax.*h3.*\.safetensors$'),
+    '128': ('H3 text encoder', 'clip_name', r'qwen3vl[_-]32b.*minimax.*h3.*\.(?:safetensors|gguf)$'),
     '119': ('Video VAE', 'vae_name', r'minimax.*h3.*video_vae.*\.safetensors$'),
     '120': ('Audio VAE', 'vae_name', r'minimax.*h3.*audio_vae.*\.safetensors$'),
     '145': ('8-step acceleration LoRA', 'lora_name', r'minimax.*h3.*ref2v.*8step.*\.safetensors$'),
@@ -79,6 +79,9 @@ def settings(data):
     if any(not isinstance(ident, str) or ident and not re.fullmatch(r'[a-f0-9]{32}', ident) for ident in audio_ids.values()):
         raise ValueError('Choose an uploaded audio file.')
     enhance = data.get('prompt_enhancer', False)
+    lift = data.get('selflift', False)
+    if not isinstance(lift, bool):
+        raise ValueError('SelfLift must be on or off.')
     enhancer_model = data.get('enhancer_model', '')
     if not isinstance(enhance, bool) or not isinstance(enhancer_model, str) or len(enhancer_model) > 512:
         raise ValueError('Invalid video prompt enhancer selection.')
@@ -86,7 +89,7 @@ def settings(data):
                 workflow_id='h3-ref2va', model_files=files, model_format='gguf' if files.get('127', '').lower().endswith('.gguf') else 'standard', steps=8,
                 ratio=ratio, megapixels=mp, duration=duration, fps=24, seed=seed,
                 video_preset=preset, reference_ids=list(dict.fromkeys(refs)), motion_reference_id=motion_id, **audio_ids, prompt_enhancer=enhance,enhancer_model=enhancer_model,
-                video_direction=video_prompt.validate(data.get('video_direction', {})),
+                selflift=lift, video_direction=video_prompt.validate(data.get('video_direction', {})),
                 loras=validate_loras(data.get('loras', [])))
 
 
@@ -110,11 +113,16 @@ def availability(nodes, vram_total=None, selected=None):
                 all_files = names(nodes, kind, field)
                 if key == '127':
                     all_files += names(nodes, 'UnetLoaderGGUF', 'unet_name')
+                if key == '128':
+                    all_files += names(nodes, 'CLIPLoaderGGUF', 'clip_name')
                 options = list(dict.fromkeys(name for name in all_files if re.search(pattern, name, re.I)))
                 default = inputs[field]
                 chosen = (selected or {}).get(key, default)
                 if key == '127' and chosen.lower().endswith('.gguf') and 'UnetLoaderGGUF' not in nodes:
                     fixed_missing.append('Node: UnetLoaderGGUF (H3-compatible version)')
+                    missing.append(fixed_missing[-1])
+                if key == '128' and chosen.lower().endswith('.gguf') and 'CLIPLoaderGGUF' not in nodes:
+                    fixed_missing.append('Node: CLIPLoaderGGUF (H3-compatible version)')
                     missing.append(fixed_missing[-1])
                 loaders.append(dict(node=key, role=role, options=options, default=default))
                 if chosen not in options:
@@ -132,7 +140,7 @@ def availability(nodes, vram_total=None, selected=None):
     model_choices = [dict(file=file, preset=preset, recommended=preset == 'fast-omni')
                      for preset in ('fast-omni', 'original') for loader in result[preset]['loaders']
                      if loader['node'] == '127' for file in loader['options']]
-    return dict(presets=result, models=model_choices, loras=lora_availability(nodes),prompt_presets=video_prompt.catalog(),enhancer=video_prompt.availability(nodes),
+    return dict(presets=result, models=model_choices, selflift=selflift.availability(nodes),loras=lora_availability(nodes),prompt_presets=video_prompt.catalog(),enhancer=video_prompt.availability(nodes),
                 min_vram_gb=12, vram_total=vram_total, steps=8, max_references=9)
 
 
@@ -154,6 +162,9 @@ def build_graph(saved, prefix, nodes=None):
             graph[key]['inputs'][MODEL_FIELDS[key][1]] = filename
     if graph['127']['inputs']['unet_name'].lower().endswith('.gguf'):
         graph['127'] = dict(class_type='UnetLoaderGGUF', inputs=dict(unet_name=graph['127']['inputs']['unet_name']))
+    if graph['128']['inputs']['clip_name'].lower().endswith('.gguf'):
+        inputs = graph['128']['inputs']
+        graph['128'] = dict(class_type='CLIPLoaderGGUF', inputs=dict(clip_name=inputs['clip_name'], type=inputs['type']))
     attach_loras(graph, saved.get('loras', []))
     refs = saved.get('references', [])
     if len(refs) > 9:
@@ -196,6 +207,7 @@ def build_graph(saved, prefix, nodes=None):
     encoder.update(prompt=prompt, **image_dimensions(saved['ratio'], saved['megapixels'], minimum=.2), length=frames, ref_image_size='match')
     graph['129']['inputs']['noise_seed'] = saved['seed']
     graph['124']['inputs']['steps'] = 8
+    selflift.attach(graph,saved,nodes)
     graph['92']['inputs']['filename_prefix'] = prefix
     if saved.get('prompt_enhancer'):
         video_prompt.attach(graph,prompt,saved.get('enhancer_model',''),saved['seed'],saved['duration'],nodes or {},[f'h3_reference_{i}' for i in range(len(refs))])

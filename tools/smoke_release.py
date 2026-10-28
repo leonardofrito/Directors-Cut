@@ -10,8 +10,8 @@ def free_port():
  with socket.socket() as s:s.bind(('127.0.0.1',0));return s.getsockname()[1]
 
 async def main():
- parser=argparse.ArgumentParser();parser.add_argument('--source',action='store_true');args=parser.parse_args()
- output=ROOT/'release'/VERSION;output.mkdir(parents=True,exist_ok=True)
+ parser=argparse.ArgumentParser();parser.add_argument('--source',action='store_true');parser.add_argument('--artifacts',type=Path);args=parser.parse_args()
+ output=args.artifacts.resolve() if args.artifacts else ROOT/'release'/VERSION;output.mkdir(parents=True,exist_ok=True)
  if args.source:command=[sys.executable,str(ROOT/'app_entry.py')]
  else:
   files=list(output.glob('*.exe')) if platform.system()=='Windows' else list(output.glob('*.app/Contents/MacOS/*')) if platform.system()=='Darwin' else [p for p in output.glob('DirectorsCut-*-linux-*') if p.is_file()]
@@ -72,8 +72,8 @@ async def main():
    self_data['data_dir']='isolated test data';self_report.write_text(json.dumps(self_data,indent=2),encoding='utf-8')
    result={'ok':True,'source_mode':args.source,'platform':platform.platform(),'version':VERSION,'managed_proxy':True,'persistent_projects':True,'web_resources':True,'verified_catalog':True,'self_test':self_data,'gpu_generation':False,'model_download':False}
    (output/'smoke-report.json').write_text(json.dumps(result,indent=2),encoding='utf-8');print(json.dumps(result))
-   from tools.build_release import checksums
-   checksums()
+   from tools import build_release
+   build_release.OUTPUT=output;build_release.checksums()
   finally:
    if process and process.returncode is None:process.terminate();await process.wait()
    log.close();await runner.cleanup()

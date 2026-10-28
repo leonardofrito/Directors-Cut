@@ -53,6 +53,7 @@ def stage():
             local=Path(*parts[2:]).as_posix()
             if local!='index.json' and local not in active:continue
         if path.name.endswith('-prompt.txt'):continue
+        if relative.as_posix() in ('assets/branding/directors-cut-profile-glass.png','assets/branding/directors-cut-icon-only.png','assets/branding/Logo Pre - Realista.png'):continue
         target=STAGE/'web'/relative;target.parent.mkdir(parents=True,exist_ok=True);shutil.copy2(path,target);selected.append(target)
     # API graphs only: no original UI workflow archives, private media or machine state.
     catalogs=json.loads((ROOT/'workflows/catalog.json').read_text(encoding='utf-8'))
@@ -66,6 +67,7 @@ def stage():
         if not path.is_file():continue
         target=STAGE/'docs/prompt-guides'/path.name;target.parent.mkdir(parents=True,exist_ok=True);shutil.copy2(path,target)
     (STAGE/'openframe').mkdir(exist_ok=True);shutil.copy2(ROOT/'openframe/model_download_catalog.json',STAGE/'openframe/model_download_catalog.json')
+    shutil.copy2(ROOT/'openframe/node_catalog.json',STAGE/'openframe/node_catalog.json')
     # Generate platform icons from the existing approved PNG; no new image generation.
     from PIL import Image
     with Image.open(ROOT/'web/assets/branding/directors-cut-icon-v1.png') as image:
@@ -90,7 +92,7 @@ def source_archive():
             archive.write(ROOT/'docs'/name,'docs/'+name)
         for name in ['directors-cut-banner.png','directors-cut-assets.png','directors-cut-video.png']:
             archive.write(ROOT/'docs/images'/name,'docs/images/'+name)
-        for name in ['test_core.py','test_engine_connection.py','test_model_downloads.py','test_release.py','test_windows_signing.py']:
+        for name in ['test_core.py','test_engine_connection.py','test_model_downloads.py','test_selflift_setup.py','test_release.py','test_windows_signing.py']:
             path=ROOT/'tests'/name
             if path.exists():archive.write(path,'tests/'+name)
         for path in (ROOT/'packaging').glob('*'):
@@ -117,8 +119,9 @@ def windows_archive():
         archive.write(STAGE/'DEPENDENCY_NOTICES.txt','DEPENDENCY_NOTICES.txt')
 
 def main():
-    global STAGE
-    parser=argparse.ArgumentParser();parser.add_argument('--source-only',action='store_true');parser.add_argument('--prepare-only',action='store_true');parser.add_argument('--require-windows-signing',action='store_true');args=parser.parse_args()
+    global STAGE,OUTPUT
+    parser=argparse.ArgumentParser();parser.add_argument('--source-only',action='store_true');parser.add_argument('--prepare-only',action='store_true');parser.add_argument('--require-windows-signing',action='store_true');parser.add_argument('--output-dir',type=Path);args=parser.parse_args()
+    if args.output_dir:OUTPUT=args.output_dir.resolve()
     if args.require_windows_signing and platform.system()!='Windows':parser.error('--require-windows-signing is Windows-only.')
     OUTPUT.mkdir(parents=True,exist_ok=True);(ROOT/'.runtime').mkdir(exist_ok=True)
     STAGE=Path(tempfile.mkdtemp(prefix='package-stage-',dir=ROOT/'.runtime'));active=stage()

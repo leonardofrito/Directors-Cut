@@ -83,6 +83,8 @@ def family(default, candidate):
     """Restrict choices to the same inspected model family, not every UNet."""
     clean = lambda s: re.sub(r'[^a-z0-9]', '', s.lower())
     a, b = clean(default), clean(candidate)
+    if 'mmproj' in b:
+        return False
     if 'qwenimage21' in a:
         return 'qwenimage21' in b and 'pe' not in b
     if 'qwen3vl8b' in a:

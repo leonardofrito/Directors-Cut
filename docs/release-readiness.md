@@ -2,7 +2,7 @@
 
 ## Available now
 
-[Director’s Cut 0.1.0-rc.4](https://github.com/leonardofrito/Directors-Cut/releases/tag/v0.1.0-rc.4) includes a standalone Windows x64 EXE, source package, Quick Start, release notes and checksums.
+[Director’s Cut 0.1.0-rc.5](https://github.com/leonardofrito/Directors-Cut/releases/tag/v0.1.0-rc.5) includes a standalone Windows x64 EXE, source package, Quick Start, release notes and checksums.
 
 The Windows EXE includes Python, the web app, 592 preset thumbnails, workflow graphs and prompt references. Model weights, personal projects and generated media are separate.
 
@@ -19,7 +19,7 @@ The MCP bridge and video enhancer are optional. End-to-end MCP host testing and 
 - Windows signing and macOS signing/notarization.
 - Competition registration, final demo/social post and submission.
 
-The current Windows binary is unsigned and labelled pre-release. Publishing the source does not complete those remaining steps.
+The current Windows binary is unsigned and remains a release candidate. GitHub lists rc.5 as Latest so it is visible in the repository sidebar; this is not a stability certification. Publishing the source does not complete those remaining steps.
 
 The build now supports verified Authenticode signing before ZIP/checksum creation, with a required-signing option. No trusted signing identity is configured and no signed release has been published. See [Windows signing](windows-signing.md).
 

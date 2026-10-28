@@ -30,6 +30,9 @@ def usable_caption(text):
 
 
 PROFILES = (
+    dict(key='qwen35-shared', label='Qwen3.5 4B · Images + Video', kind='shared', loader_type='stable_diffusion',
+         expected='qwen3.5_4b_bf16.safetensors', workflows=None,
+         file_prefix='qwen3.5_4b', hint='Shared local enhancer with task-specific image and video instructions.'),
     dict(key='qwen21-pe-i2i', label='Qwen 2.1 image editing enhancer', kind='dedicated', loader_type='qwen_image',
          expected='qwen3.5_9b_qwen_image_2.1_pe_i2i.int8_convrot.safetensors', workflows=['qwen21'],
          file_prefix='qwen3.5_9b_qwen_image_2.1_pe_i2i', reference_only=True,
@@ -73,8 +76,8 @@ def availability(nodes, workflow_id=None):
     for profile in PROFILES:
         if workflow_id and profile['workflows'] and workflow_id not in profile['workflows']:
             continue
-        if profile['kind'] == 'dedicated':
-            files = [name for name in installed if name.replace('\\', '/').rsplit('/', 1)[-1].lower().startswith(profile['file_prefix']) and name.lower().endswith('.safetensors')]
+        if profile['kind'] in ('dedicated', 'shared'):
+            files = [name for name in installed if name.replace('\\', '/').rsplit('/', 1)[-1].lower().replace('qwen3_5_', 'qwen3.5_').startswith(profile['file_prefix']) and name.lower().endswith('.safetensors')]
         else:
             files = [name for name in installed if name.replace('\\', '/').rsplit('/', 1)[-1].lower().startswith('qwen3vl_4b_') and name.lower().endswith('.safetensors')]
         for filename in files or [profile['expected']]:
@@ -118,7 +121,7 @@ def attach(graph, item, scene, direction, seed, nodes, selected):
                   'Output only the instruction, without reasoning or commentary.')
         # A rewriter that loses even one image binding falls back to the original.
         unusable += '|' + '|'.join(r'\A(?![\s\S]*' + re.escape(tag) + r')[\s\S]*\Z' for tag in tags)
-        if model.get('reference_only'):
+        if model.get('reference_only') or model['kind'] == 'shared' and all(k in nodes for k in ('BatchImagesNode', 'ResizeAndPadImage')):
             system = system.replace('You cannot see the reference images.', 'The attached images are in tag order. Use them to clarify the requested edit without changing their roles.')
     system+='\n\nModel-specific prompting reference:\n'+runtime_guidance('qwen-edit' if image_nodes else 'qwen')
     graph.update({
@@ -145,4 +148,9 @@ def attach(graph, item, scene, direction, seed, nodes, selected):
     graph[item['prompt_node']]['inputs'][item['prompt_field']] = ['dc_directed_prompt', 0]
     if model.get('reference_only'):
         graph['dc_enhancer_images'] = dict(class_type='BatchImagesNode', inputs={f'images.image{i}': [key, 0] for i, key in enumerate(image_nodes)})
+        graph['dc_enhancer']['inputs']['image'] = ['dc_enhancer_images', 0]
+    elif model['kind'] == 'shared' and image_nodes and all(k in nodes for k in ('BatchImagesNode', 'ResizeAndPadImage')):
+        for i, key in enumerate(image_nodes):
+            graph[f'dc_shared_ref_fit_{i}'] = dict(class_type='ResizeAndPadImage', inputs=dict(image=[key, 0], target_width=512, target_height=512, padding_color='black', interpolation='area'))
+        graph['dc_enhancer_images'] = dict(class_type='BatchImagesNode', inputs={f'images.image{i}': [f'dc_shared_ref_fit_{i}', 0] for i in range(len(image_nodes))})
         graph['dc_enhancer']['inputs']['image'] = ['dc_enhancer_images', 0]

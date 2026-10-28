@@ -86,3 +86,18 @@ Sources: [ComfyUI system requirements](https://docs.comfy.org/installation/syste
 [Comfy Desktop](https://github.com/Comfy-Org/Comfy-Desktop),
 [official SDK](https://docs.comfy.org/development/api-development/sdks),
 [self-hosted proxy](https://docs.comfy.org/development/comfyui-server/api-proxy).
+
+
+## Optional automatic workflow-node setup
+
+Connection settings can install missing, allowlisted node packs and remember an opt-in to run this check at app startup. The catalog covers KJNodes (image reference resizing), GGUF loaders, optional Ref2VA VSA and optional SelfLift. Core H3, math, resolution and standard video nodes belong to ComfyUI itself; missing core nodes require an appropriate ComfyUI update rather than downloading random packs.
+
+Sources are pinned in `openframe/node_catalog.json` by repository, commit, archive size and SHA-256. Existing node folders are preserved. Dependencies run only through the configured ComfyUI Portable Python or its local `.venv`/`venv`; the app never substitutes its own Python. Pip constraints preserve installed Torch, torchvision, torchaudio and NumPy versions. Dependency conflicts are reported rather than forcing a numerical-stack upgrade. Logs are in the app data folder at `.runtime/node-setup.log`. Fresh dependency resolution on every supported OS has not been certified.
+
+Installation is local-only and refuses active app/ComfyUI queues when changes are needed. Remote ComfyUI nodes must be installed on the engine computer. ComfyUI is never automatically terminated; restart it after newly installed packs. Third-party node installation executes dependency setup; automatic setup is off until explicitly enabled by the user. Existing packs are skipped even if ComfyUI is busy.
+
+## Apple Silicon, Linux and AMD model formats
+
+Compatibility follows the engine computer, not the browser. Windows and Linux generally use the same compatible weights; AMD needs a suitable ROCm/DirectML environment and supported kernels. GGUF is a file format, not a Windows-only backend. Quantizations such as INT8 ConvRot or NVFP4 still require compatible runtime kernels; a file extension alone does not certify them on Metal or AMD.
+
+Native ComfyUI on Apple Silicon uses PyTorch MPS/Metal, not MLX. This app does not offer MLX downloads for its PyTorch H3/Qwen graphs because those weights require a separate compatible loader/runtime. A download button would not make those workflows run. BF16 and supported GGUF loaders remain available; this is not H3-on-Mac hardware certification. See the [official system-requirements FAQ](https://docs.comfy.org/installation/system_requirements).

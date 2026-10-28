@@ -54,6 +54,7 @@ async def probe(request):
  data=await request.json();return web.json_response(await cfg.probe(cfg.url(data.get('comfy_url',''))))
 async def save_folders(request):
  studio=request.app['studio'];data=await request.json()
+ if getattr(studio,'node_setup',None) and studio.node_setup.running:raise ValueError('Wait until node installation finishes before changing folders.')
  async with studio.connection.lock:
   if studio.queue_items() or studio.queue.qsize():raise ValueError('Wait until the generation queue is idle before changing folders.')
   if any(j['status'] in ('queued','downloading','verifying') for j in studio.model_downloads.snapshot()):raise ValueError('Pause model downloads before changing their destination.')
@@ -65,6 +66,7 @@ async def save_folders(request):
   return web.json_response({'settings':settings,'folders_saved':True})
 async def save(request):
  studio=request.app['studio'];data=await request.json();settings=cfg.validate(data)
+ if getattr(studio,'node_setup',None) and studio.node_setup.running:raise ValueError('Wait until node installation finishes before changing the engine.')
  async with studio.connection.lock:
   studio.connection_changing=True;new_process=None;new_log=None
   try:

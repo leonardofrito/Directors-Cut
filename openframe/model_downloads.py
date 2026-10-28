@@ -39,15 +39,19 @@ class ModelDownloads:
    
    try:model_root();download_error=''
    except ValueError as exc:download_error=str(exc)
-   models.append({**row,'installed':bool(file or local),'installed_file':file or (row['filename'] if local else ''),'download_error':download_error})
+   dependencies=row.get('dependencies',[])
+   companions_ready=all(installed(BY_ID[key],nodes) or (destination(BY_ID[key]).is_file() and destination(BY_ID[key]).stat().st_size==BY_ID[key]['size']) for key in dependencies) if not download_error else not dependencies
+   models.append({**row,'installed':bool(file or local) and companions_ready,'installed_file':file or (row['filename'] if local else ''),'download_error':download_error})
   return {'models':models,'unavailable':CATALOG['unavailable'],'verified_on':CATALOG['verified_on'],'jobs':self.snapshot()}
  def snapshot(self):return [dict(x) for x in self.jobs.values()]
  async def start(self,ident):
   if ident not in BY_ID:raise ValueError('Choose a model from the verified catalog.')
   row=BY_ID[ident];target=destination(row)
+  for dependency in row.get('dependencies',[]):await self.start(dependency)
   if target.exists():
    if target.stat().st_size!=row['size']:raise ValueError('A different file already exists with this name. Existing files are never overwritten.')
-   return {'id':ident,'status':'installed','received':row['size'],'total':row['size']}
+   if all(self.jobs.get(key,{}).get('status')=='installed' or (destination(BY_ID[key]).is_file() and destination(BY_ID[key]).stat().st_size==BY_ID[key]['size']) for key in row.get('dependencies',[])):
+    self.jobs[ident]={'id':ident,'status':'installed','received':row['size'],'total':row['size']};return dict(self.jobs[ident])
   if ident in self.tasks and not self.tasks[ident].done():return dict(self.jobs[ident])
   partial=target.with_name('.'+target.name+'.download.part');target.parent.mkdir(parents=True,exist_ok=True)
   remaining=row['size']-(partial.stat().st_size if partial.exists() else 0)
@@ -66,6 +70,11 @@ class ModelDownloads:
  async def _download(self,row,target,partial):
   job=self.jobs[row['id']]
   try:
+   for dependency in row.get('dependencies',[]):
+    if task:=self.tasks.get(dependency):await asyncio.shield(task)
+    if self.jobs.get(dependency,{}).get('status') not in (None,'installed'):raise ValueError('Required vision companion did not finish. Retry this download to resume both files.')
+   if target.is_file() and target.stat().st_size==row['size']:
+    job.update(status='installed',received=row['size'],error='');return
    async with self.serial:
     job['status']='downloading'
     timeout=aiohttp.ClientTimeout(total=None,connect=30,sock_read=120)

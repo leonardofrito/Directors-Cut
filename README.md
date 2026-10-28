@@ -4,13 +4,15 @@ Create characters, props and locations, then bring them together in reference-dr
 
 ## Download
 
+[**Download for Windows — 0.1.0-rc.5**](https://github.com/leonardofrito/Directors-Cut/releases/download/v0.1.0-rc.5/DirectorsCut-0.1.0-rc.5-windows-x64.exe) · [All release files](https://github.com/leonardofrito/Directors-Cut/releases/tag/v0.1.0-rc.5)
+
 | Platform | Available download |
 | --- | --- |
-| Windows x64 | [Download the EXE](https://github.com/leonardofrito/Directors-Cut/releases/download/v0.1.0-rc.4/DirectorsCut-0.1.0-rc.4-windows-x64.exe) — Python included |
-| macOS | [Download the source package](https://github.com/leonardofrito/Directors-Cut/releases/download/v0.1.0-rc.4/DirectorsCut-0.1.0-rc.4-source.zip) — native app not published yet |
-| Linux | [Download the source package](https://github.com/leonardofrito/Directors-Cut/releases/download/v0.1.0-rc.4/DirectorsCut-0.1.0-rc.4-source.zip) — native executable not published yet |
+| Windows x64 | [Download the EXE](https://github.com/leonardofrito/Directors-Cut/releases/download/v0.1.0-rc.5/DirectorsCut-0.1.0-rc.5-windows-x64.exe) — Python included |
+| macOS | [Download the source package](https://github.com/leonardofrito/Directors-Cut/releases/download/v0.1.0-rc.5/DirectorsCut-0.1.0-rc.5-source.zip) — native app not published yet |
+| Linux | [Download the source package](https://github.com/leonardofrito/Directors-Cut/releases/download/v0.1.0-rc.5/DirectorsCut-0.1.0-rc.5-source.zip) — native executable not published yet |
 
-[Quick Start](packaging/QUICKSTART.md) · [Release notes](https://github.com/leonardofrito/Directors-Cut/releases/tag/v0.1.0-rc.4)
+[Quick Start](packaging/QUICKSTART.md) · [Release notes](https://github.com/leonardofrito/Directors-Cut/releases/tag/v0.1.0-rc.5)
 
 A compatible ComfyUI installation and model files are required separately. The current Windows build is an unsigned release candidate.
 

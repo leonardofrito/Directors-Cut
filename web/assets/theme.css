@@ -170,3 +170,19 @@ body.image-editing .prompt-composer:has(.edit-preset-indicator:not([hidden])) te
 .asset-preset-group .video-camera-tabs > button.video-camera-tab[data-category="render_style"]{grid-column:1 / -1!important;width:100%;box-sizing:border-box}
 
 .engine-app-actions{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin-top:24px;padding-top:16px;border-top:1px solid #ffffff12;font-size:11px;color:var(--muted)}.engine-app-actions>span{margin-right:auto}.engine-app-actions a{color:var(--muted)}.engine-app-actions button{font:inherit;font-size:11px;padding:7px 10px;min-height:32px}
+
+/* Keep settings text on normal DOM font rendering; glass lives behind the copy. */
+#models-dialog{font-family:"Segoe UI",system-ui,-apple-system,BlinkMacSystemFont,sans-serif;font-size:14px;font-weight:400;font-synthesis:none;text-rendering:auto;-webkit-font-smoothing:auto;-moz-osx-font-smoothing:auto;text-shadow:none;filter:none;backdrop-filter:none;transform:none;will-change:auto}
+#models-dialog[open]{animation:settings-text-enter .18s ease-out}
+@keyframes settings-text-enter{from{opacity:0}to{opacity:1}}
+#models-dialog :is(h2,h3,label,p,span,strong,small,code,a,button,input,select,summary){text-shadow:none;filter:none;-webkit-text-stroke:0}
+#models-dialog :is(button,input,select,.dropdown-trigger,.dropdown-popup){font-family:inherit;font-synthesis:none}
+#models-dialog h2{font-family:inherit;font-weight:600;letter-spacing:normal}
+#models-dialog h3{font-size:15px;font-weight:600;line-height:1.5}
+#models-dialog :is(label,.control-help,.model-download-state,.model-download-source,.node-pack-row span,.node-choice span){font-size:13px;line-height:1.6}
+#models-dialog :is(.option-name,.settings-tabs>button,.model-format-tabs>button){font-size:13px}
+#models-dialog :is(.settings-tabs>button,.model-format-tabs>button,.node-actions>button){font-weight:500}
+#models-dialog strong{font-weight:600}
+#models-dialog code{font-family:ui-monospace,Consolas,monospace;font-size:12px;line-height:1.6}
+#models-dialog .dropdown-popup{backdrop-filter:none;background:var(--menu,#080808)}
+@media(prefers-reduced-motion:reduce){#models-dialog[open]{animation:none}}

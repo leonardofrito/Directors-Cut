@@ -1,3 +1,14 @@
+# 0.1.0-rc.5
+
+- Clearer settings typography with native system fonts, larger helper text and no text blur/shadow effects. The shared installed Qwen3.5 4B INT8 enhancer has a readable precision label.
+
+- Optional SelfLift for H3 REF2VA: four lower-resolution sampling steps followed by four at the selected size. Off preserves the existing sampler recipe. H3 SelfLift remains experimental; quality, adherence and memory savings are not guaranteed.
+- Opt-in automatic installation of missing, pinned KJNodes/GGUF/VSA/SelfLift node packs using the configured local ComfyUI Python. Existing node folders and numerical-stack versions are preserved. New nodes need a ComfyUI restart.
+- Organized model selectors with Omni first and independent Standard/GGUF encoder controls; official H3 encoder NVFP4-AWQ is visible. Qwen encoder GGUF downloads include their vision companion. H3 encoder GGUF remains experimental.
+- Shared Qwen3.5 4B enhancer settings for Assets and Video, with task-specific instructions. Saved take settings remain reusable.
+- No MLX runtime or MLX weight downloads were added. Native ComfyUI on Apple Silicon uses PyTorch MPS; GPU-specific quantizations require supported kernels.
+- Focused graph/setup checks and native package verification do not certify SelfLift output quality or physical Mac/Linux/AMD operation.
+
 # 0.1.0-rc.4
 
 - Added a visible Quit button beside Engine settings. It uses the existing shutdown action and keeps the active-generation/download guards. Closing a browser tab still does not terminate the server automatically.

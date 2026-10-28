@@ -83,6 +83,7 @@
       this.popup.replaceChildren(...this.options.map((o,index)=>{
         const el=document.createElement('div');el.id=this.select.id+'-option-'+index;el.className='dropdown-option';el.setAttribute('role','option');el.setAttribute('aria-label',o.label);el.setAttribute('aria-selected',String(o.selected));el.setAttribute('aria-disabled',String(o.disabled));
         if(this.grid){el.classList.add('image-option');el.title=previews[this.select.id]?.[o.value]?.hint || o.label;}
+        if(o.dataset.group&&this.options[index-1]?.dataset.group!==o.dataset.group)el.dataset.groupHeading=o.dataset.group;
         decorate(el,this.select,o);
         if(o.value==='__new__')el.classList.add('dropdown-create');
         const check=document.createElement('span');check.className='option-check';check.textContent=o.selected?'✓':'';check.setAttribute('aria-hidden','true');el.append(check);

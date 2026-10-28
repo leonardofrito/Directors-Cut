@@ -62,8 +62,9 @@
   function capture(){return {mode:'video',title:$v('title').value.trim()||'Video shot',prompt:$v('prompt').value,
     ratio:$v('ratio').value,megapixels:Number($v('mp').value),duration:Number($v('duration').value),
     audio_reference_id:audioReferenceId,output_audio_id:outputAudioId,motion_reference_id:motionReferenceId,video_preset:$v('preset').value,model_files:{...selectedVideoModels},loras:structuredClone(selectedVideoLoras),reference_ids:referenceIds(),seed:-1,
-    video_direction:{...videoDirection},prompt_enhancer:$v('enhancer-toggle').checked,enhancer_model:videoEnhancerModel};}
+    video_direction:{...videoDirection},selflift:$v('selflift').checked,prompt_enhancer:$v('enhancer-toggle').checked,enhancer_model:videoEnhancerModel};}
   function load(s,exact=false){
+    $v('selflift').checked=Boolean(!exact&&videoPreferences?videoPreferences.selflift:s.selflift);
     rememberWorkspaceItem('video',s.id);
     clearDroppedAudio();
     closeChoices();$v('mentions').hidden=true;
@@ -73,7 +74,7 @@
     $v('mp').value=String(s.megapixels||.5);$v('duration').value=String(s.duration||5);
     selectedVideoModels={...(!exact&&videoPreferences?videoPreferences.model_files:s.model_files)};
     selectedVideoLoras=structuredClone((!exact&&videoPreferences?videoPreferences.loras:s.loras)||[]);
-    videoDirection={...(s.video_direction||{})};delete videoDirection.palette;delete videoDirection.era;delete videoDirection.genre;videoEnhancerModel=(!exact&&videoPreferences?videoPreferences.enhancer_model:s.enhancer_model)||config?.video?.enhancer?.default||'';$v('enhancer-toggle').checked=Boolean(s.prompt_enhancer);
+    videoDirection={...(s.video_direction||{})};delete videoDirection.palette;delete videoDirection.era;delete videoDirection.genre;videoEnhancerModel=(!exact?(window.DirectorModelDownloads?.sharedValue()||videoPreferences?.enhancer_model):s.enhancer_model)||config?.video?.enhancer?.default||'';$v('enhancer-toggle').checked=Boolean(s.prompt_enhancer);
     $v('preset').value=(!exact&&videoPreferences?videoPreferences.video_preset:s.video_preset)||'fast-omni';normalizeModelRecipe();refs=[...(s.reference_ids||[])];mentionedIds=new Set();syncMentionReferences();dirty=false;pending=null;
   }
   function save(){
@@ -492,16 +493,19 @@
   $v('mentions').addEventListener('mouseleave',()=>{if(document.activeElement!==$v('prompt'))$v('mentions').hidden=true;});
 
   function saveVideoPreferences(){
-    videoPreferences={video_preset:$v('preset').value,model_files:{...selectedVideoModels},loras:structuredClone(selectedVideoLoras),enhancer_model:videoEnhancerModel};
+    videoPreferences={video_preset:$v('preset').value,model_files:{...selectedVideoModels},loras:structuredClone(selectedVideoLoras),selflift:$v('selflift').checked,enhancer_model:videoEnhancerModel};
     localStorage.setItem('directors-cut-video-engine',JSON.stringify(videoPreferences));
   }
   function selectedReadiness(){
     const profile=config?.video?.presets?.[$v('preset').value];if(!profile?.loaders)return profile;
     const files=active?selectedVideoModels:(videoPreferences?.model_files||selectedVideoModels);
     const missing=[...(profile.fixed_missing||[]),...profile.loaders.filter(loader=>!loader.options.includes(files[loader.node]||loader.default)).map(loader=>'File: '+(files[loader.node]||loader.default)),...selectedVideoLoras.filter(row=>row.enabled&&row.strength!==0&&!config?.video?.loras?.files?.includes(row.name)).map(row=>'LoRA: '+row.name)];
+    if($v('selflift').checked&&!config?.video?.selflift?.ready)missing.push('Install SelfLift in Connection → Workflow nodes and restart ComfyUI.');
     return {...profile,ready:!missing.length,missing};
   }
   function renderSettings(){
+    if(!active&&videoPreferences)$v('selflift').checked=Boolean(videoPreferences.selflift);
+    $v('selflift-status').textContent=config?.video?.selflift?.ready?'SelfLift node loaded.':'Install the optional SelfLift node under Connection → Workflow nodes.';
     if(!active&&videoPreferences){$v('preset').value=videoPreferences.video_preset||'original';selectedVideoModels={...videoPreferences.model_files};}
     normalizeModelRecipe();
     const profile=selectedReadiness(),root=$v('model-files');
@@ -523,7 +527,7 @@
         }
         saveVideoPreferences();if(active)changed();else renderSettings();window.DirectorDropdowns.sync();
       };
-      box.append(label,select);if(downloads&&role)downloads.decorate(box,select,'video',role);return box;
+      box.append(label,select);if(downloads&&role){downloads.decorate(box,select,'video',role);if(['diffusion','encoder'].includes(role))downloads.formatTabs(box,select,'video-'+role);}return box;
     }));}
     $v('model-status').textContent=profile?.ready?'Ready':profile?.missing?.join(' ')||'Connect the engine to list installed models.';
     $v('model-status').className=profile?.ready?'control-help ready':'control-help';
@@ -664,8 +668,10 @@
     $v('enhancer-status').textContent=ready?(status.vision?'Local Qwen3.5 4B · reads attached references and expands video direction.':'Local Qwen3.5 4B · text-only video rewriter; reference tags are preserved.'):status?.missing?.join(' ')||'Install Qwen3.5 4B in ComfyUI/models/text_encoders and refresh.';
   }
   $v('reset-presets').onclick=()=>{videoDirection={};changed();};
+  $v('selflift').onchange=()=>{saveVideoPreferences();if(active)changed();else renderSettings();};
   $v('enhancer-toggle').onchange=changed;
   $v('enhancer-model').onchange=()=>{videoEnhancerModel=$v('enhancer-model').value;saveVideoPreferences();if(active)changed();else renderSettings();};
+  document.addEventListener('shared-enhancer-change',event=>{videoEnhancerModel=event.detail;saveVideoPreferences();if(active)changed();else renderSettings();});
   function renderVideoLoras(){
     const root=$v('lora-stack'),files=config?.video?.loras?.files||[],stamp=JSON.stringify([files,selectedVideoLoras]);if(root.dataset.stamp===stamp)return;root.dataset.stamp=stamp;
     root.replaceChildren(...selectedVideoLoras.map((row,index)=>{

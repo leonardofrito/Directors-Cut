@@ -12,6 +12,7 @@ async def quit_app(request):
     stop=request.app.get('shutdown_event')
     if stop is None:raise ValueError('Close the terminal used to launch this development server.')
     studio=request.app['studio']
+    if getattr(studio,'node_setup',None) and studio.node_setup.running:raise ValueError('Wait until node installation finishes before quitting.')
     if studio.queue_items() or studio.queue.qsize():raise ValueError('Finish or cancel the generation queue before quitting.')
     if any(j['status'] in ('queued','downloading','verifying') for j in studio.model_downloads.snapshot()):raise ValueError('Pause model downloads before quitting.')
     asyncio.get_running_loop().call_later(.4,stop.set)

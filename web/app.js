@@ -67,6 +67,7 @@ function setEditor(shot,exact=false) {
   if(shot.workflow_id==='qwen21-edit')shot={...shot,workflow_id:'qwen21',model_files:Object.fromEntries(Object.entries(shot.model_files || {}).map(([key,value])=>[key.replace(/^459_/,''),value]))};
   $('workflow-model').value=shot.workflow_id || 'qwen21';
   $('model-format').value=shot.model_format || 'standard';
+  if(!exact&&window.DirectorModelDownloads?.sharedValue())shot={...shot,enhancer_model:window.DirectorModelDownloads.sharedValue()};
   renderEnhancers(shot.enhancer_model || '');
   const legacy=config.legacy_camera_defaults?.[shot.lens || 'Natural perspective'] || {};
   const defaults={...legacy,megapixels:2,lighting:'Natural light',light_color:'As scene / preset',light_notes:'',film:'Digital clean',grade:'Natural',f_stop:'',enhancer_model:''};
@@ -107,7 +108,7 @@ function renderModels() {
     const select=document.createElement('select');select.id='file-'+index;
     const role={UNETLoader:'diffusion',CLIPLoader:'encoder',VAELoader:'vae'}[loader.kind];
     const downloadOptions=window.DirectorModelDownloads;
-    select.replaceChildren(...(downloadOptions?[...downloadOptions.options('qwen21',role,loader.options,$('model-format').value),...downloadOptions.unavailable('qwen21',role)]:loader.options.map(x=>new Option(x,x))));
+    select.replaceChildren(...(downloadOptions?[...downloadOptions.options('qwen21',role,loader.options,role==='diffusion'?$('model-format').value:null),...downloadOptions.unavailable('qwen21',role)]:loader.options.map(x=>new Option(x,x))));
     select.disabled=!select.options.length;
     select.value=[...select.options].some(o=>o.value===selectedModels[loader.node])?selectedModels[loader.node]:loader.default;
     if(!select.value&&select.options.length)select.selectedIndex=0;
@@ -116,7 +117,7 @@ function renderModels() {
     const info=document.createElement('code');
     const folder={UNETLoader:'diffusion_models',CLIPLoader:'text_encoders',VAELoader:'vae'}[loader.kind];
     info.textContent=`ComfyUI/models/${folder}/ · ${loader.target_kind}${loader.options.length?'':' · Expected family: '+loader.expected}`;
-    box.append(label,select,info);if(downloadOptions)downloadOptions.decorate(box,select,'qwen21',role);return box;
+    box.append(label,select,info);if(downloadOptions){downloadOptions.decorate(box,select,'qwen21',role);if(role==='encoder')downloadOptions.formatTabs(box,select,'image-encoder');}return box;
   }));
   $('model-missing').replaceChildren(...format.missing.map(message=>{const p=document.createElement('p');p.textContent=message;return p;}));
   $('model-links').replaceChildren(...workflow.links.map(url=>{const a=document.createElement('a');a.href=url;a.target='_blank';a.rel='noreferrer';a.textContent=decodeURIComponent(url.replace('https://huggingface.co/',''));return a;}));
@@ -362,7 +363,7 @@ function renderQueue() {
 }
 async function safe(action) {try {await action();} catch(error) {toast(error.message);} }
 function enhancerModels() {
-  return (config?.enhancer?.models || []).filter(model=>model.kind==='dedicated'&&model.workflows?.includes('qwen21')).map(model=>{
+  return (config?.enhancer?.models || []).filter(model=>model.kind==='shared'||model.kind==='dedicated'&&model.workflows?.includes('qwen21')).map(model=>{
     const compatible=(!model.workflows || model.workflows.includes($('workflow-model').value))&&(!model.reference_only||imageEdit||resolvedReferenceIds().length>0||uploadedReferenceIds.length>0);
     return {...model,ready:model.ready&&compatible,missing:compatible?model.missing:[...model.missing,'This enhancer requires reference images']};
   });
@@ -401,6 +402,7 @@ function renderEnhancerDownloads() {
   }));
 }
 $('enhancer_model').onchange=()=>{saveEnginePreferences();legacyEnhancer=false;if(!selectedEnhancer()?.ready)$('prompt_enhancer').checked=false;lock();};
+document.addEventListener('shared-enhancer-change',event=>{renderEnhancers(event.detail);$('enhancer_model').value=event.detail;$('enhancer_model').onchange();});
 $('prompt_enhancer').onchange=lock;
 $('ratio').onchange=()=>{const hint=$('preview').querySelector('.aspect-hint');if(hint)hint.textContent=$('ratio').value;updateResolutionSize();};
 $('megapixels').oninput=updateResolutionSize;
@@ -421,9 +423,10 @@ $('asset-new').onclick=()=>safe(async()=>{
 $('add-shot').onclick=()=>safe(async()=>{await saveNotes(false);const s=await api(`/projects/${project.id}/shots`,'POST',{mode:creationMode});project.shots.push(s);shotId=s.id;selectedDraft=null;setEditor(s);render();project=await api(`/projects/${project.id}`);render();$('prompt').focus();});
 $('save-shot').onclick=()=>safe(()=>saveNotes());
 $('workflow-model').onchange=()=>{selectedModels={};$('steps').value=currentWorkflow()?.default_steps || 25;renderModels();render();};
-$('model-format').onchange=()=>{selectedModels={};renderModels();saveEnginePreferences();render();};
+$('model-format').onchange=()=>{for(const loader of currentWorkflow()?.formats?.[$('model-format').value]?.loaders||[])if(loader.kind==='UNETLoader')delete selectedModels[loader.node];renderModels();saveEnginePreferences();render();};
 function selectSettingsSection(mode){
-  for(const name of ['images','video','connection'])$('settings-'+name).setAttribute('aria-selected',String(name===mode));
+  for(const name of ['images','video','connection','enhancer'])$('settings-'+name)?.setAttribute('aria-selected',String(name===mode));
+  if($('shared-enhancer-settings'))$('shared-enhancer-settings').hidden=mode!=='enhancer';
   $('image-model-settings').hidden=mode!=='images';$('video-model-settings').hidden=mode!=='video';$('connection-settings').hidden=mode!=='connection';
 }
 $('engine-settings').onclick=()=>{renderModels();selectSettingsSection(window.DirectorVideo?.active?'video':'images');$('models-dialog').showModal();};

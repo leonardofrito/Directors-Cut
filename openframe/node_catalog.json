@@ -1,0 +1,51 @@
+[
+  {
+    "id": "kjnodes",
+    "repo": "kijai/ComfyUI-KJNodes",
+    "revision": "0209e3091a1f4a9e112d2320c55f47572b00994f",
+    "url": "https://codeload.github.com/kijai/ComfyUI-KJNodes/zip/0209e3091a1f4a9e112d2320c55f47572b00994f",
+    "sha256": "9204a2c30dff7e9f5267157b43bc97a39e4681ee06dde607a67d712cde1ff274",
+    "size": 1172336,
+    "nodes": [
+      "ImageResizeKJv2"
+    ],
+    "folder": "ComfyUI-KJNodes"
+  },
+  {
+    "id": "gguf",
+    "repo": "leejet/ComfyUI-GGUF",
+    "revision": "373048b8403a7820620065210a691263d4da0a61",
+    "url": "https://codeload.github.com/leejet/ComfyUI-GGUF/zip/373048b8403a7820620065210a691263d4da0a61",
+    "sha256": "692c367072b6c1ec87ac9f3410c8e2563dfb8c0bb7f4abead09a8d6515c67169",
+    "size": 38557,
+    "nodes": [
+      "UnetLoaderGGUF",
+      "CLIPLoaderGGUF"
+    ],
+    "folder": "ComfyUI-GGUF"
+  },
+  {
+    "id": "vsa",
+    "repo": "Kablex/ComfyUI-Ref2VA-VSA",
+    "revision": "323a0a5f7c636cc70f95464145732f81f04a72e9",
+    "url": "https://codeload.github.com/Kablex/ComfyUI-Ref2VA-VSA/zip/323a0a5f7c636cc70f95464145732f81f04a72e9",
+    "sha256": "72b3efc40be35f68d79f763ac1aa5ffb07f75811c2e3ae8f93e0af697082e7fa",
+    "size": 4420703,
+    "nodes": [
+      "Ref2VAVSAGatePatch"
+    ],
+    "folder": "ComfyUI-Ref2VA-VSA"
+  },
+  {
+    "id": "selflift",
+    "repo": "facok/comfyui-SelfLift",
+    "revision": "835c3cf7919410f71f414688f049c6ca497789d0",
+    "url": "https://codeload.github.com/facok/comfyui-SelfLift/zip/835c3cf7919410f71f414688f049c6ca497789d0",
+    "sha256": "51ccb577a22b9d31a93a50187cd76ebf4232a88d579db86263cd14ca099b8296",
+    "size": 33961,
+    "nodes": [
+      "SelfLiftH3Sampler"
+    ],
+    "folder": "comfyui-SelfLift"
+  }
+]

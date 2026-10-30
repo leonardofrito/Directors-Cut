@@ -1,3 +1,7 @@
+[![Watch the Director’s Cut demo on YouTube](https://img.youtube.com/vi/Qbaz_HbrWo4/hqdefault.jpg)](https://www.youtube.com/watch?v=Qbaz_HbrWo4)
+
+[**Watch the 2-minute demo →**](https://www.youtube.com/watch?v=Qbaz_HbrWo4)
+
 ![Director’s Cut — Create locally.](docs/images/directors-cut-banner.png)
 
 Create characters, props and locations, then bring them together in reference-driven video. Director’s Cut connects to your own ComfyUI and uses **Qwen-Image 2.1**, **MiniMax H3 REF2VA** and the official **Comfy SDK**.

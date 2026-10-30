@@ -184,3 +184,30 @@ dialog label{font-size:12px}dialog input{font-size:13px}dialog .control-help{fon
 /* Model setup: independent format controls and readable source groups. */
 .selflift-setting,.workflow-node-settings{padding:16px 0;border-top:1px solid #ffffff12;margin-top:16px}.node-choice,.node-optional,.node-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.node-choice input,.node-optional input{width:auto}.node-choice span,.node-pack-row span{color:var(--muted,#959795);font-size:12px}.node-pack-row{display:flex;justify-content:space-between;gap:12px;padding:8px 0}.node-optional{margin:12px 0}.node-actions{margin-top:12px}
 .model-format-tabs{display:flex;gap:6px;margin:8px 0}.model-format-tabs button{flex:1;padding:8px 12px;font:inherit}.model-format-tabs button[aria-pressed="true"]{background:var(--accent,#c4d411);color:#000}.dropdown-option[data-group-heading]{flex-wrap:wrap}.dropdown-option[data-group-heading]::before{content:attr(data-group-heading);flex:0 0 100%;font-size:11px;font-weight:700;color:var(--accent,#c4d411);padding:10px 0 7px;border-top:1px solid #ffffff18}#shared-enhancer-settings{padding:12px 0}#shared-enhancer-settings>label{display:block;margin-bottom:8px}
+
+/* Shot selection shares the existing glass material. */
+.shot-card-select{position:absolute;z-index:3;right:10px;top:10px;width:36px;height:36px;background:#141414e8;border:1px solid #ffffff38;color:var(--text);border-radius:10px}
+.shot-card-select[aria-pressed="true"]{background:var(--accent,#c4d411);color:#000;border-color:var(--accent,#c4d411)}
+.shot-card.shot-selected{outline:2px solid var(--accent,#c4d411);outline-offset:-2px}
+.library-batch{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:12px 18px;border-bottom:1px solid #ffffff14;background:#101010}
+.library-batch[hidden]{display:none}.library-batch strong{font-size:14px}.library-batch .batch-spacer{flex:1}.library-batch button{min-height:34px}
+.selflift-setting{border:1px solid #c4d44455;background:linear-gradient(125deg,#1c1d12,#111);padding:16px;border-radius:14px;margin:12px 0 18px}
+.selflift-setting .node-choice strong{font-size:17px;color:var(--accent,#c4d411)}
+.selflift-setting .control-help:empty{display:none}
+.video-vsa-auto{display:block;margin:0 0 12px;color:var(--muted);font-size:12px}.video-vsa-auto[hidden]{display:none}
+.model-source-links{margin-top:20px;padding-top:12px;border-top:1px solid #ffffff15}.model-source-links summary{cursor:pointer;color:var(--muted)}
+.model-source-links a,.video-downloads a{display:block;margin-top:8px;font-size:12px;overflow-wrap:anywhere}
+
+.shot-card-select[aria-pressed="false"] svg path{opacity:0}
+
+#asset-library .shot-card>.shot-card-select,#asset-library .shot-card>.shot-card-select:hover,#asset-library .shot-card>.shot-card-select:active{position:absolute;top:10px;right:10px;left:auto;bottom:auto;transform:none;transition:background-color .14s,border-color .14s,color .14s}
+#asset-library .shot-card>.shot-card-select svg{pointer-events:none}
+
+/* Shared asset/shot selection, compact optional sampler control. */
+#asset-library .asset-card>.shot-card-select,#asset-library .asset-card>.shot-card-select:hover,#asset-library .asset-card>.shot-card-select:active{position:absolute;top:10px;right:10px;left:auto;bottom:auto;transform:none;transition:background-color .14s,border-color .14s,color .14s}
+#asset-library .asset-card.shot-selected{outline:2px solid var(--accent,#c4d411);outline-offset:-2px}
+#asset-library .asset-card>.shot-card-select svg{pointer-events:none}
+#video-model-settings .selflift-setting{padding:8px 10px;margin:6px 0 10px;border-radius:10px}
+#video-model-settings .selflift-setting .node-choice{margin:0;gap:8px;min-height:24px}
+#video-model-settings .selflift-setting .node-choice strong{font-size:14px}
+#video-model-settings .selflift-setting .control-help{margin:4px 0 0}

@@ -1,6 +1,7 @@
 /* One place to browse project assets and video shots. */
 (() => {
   let tab='assets',projects=[],shotStamp='',playback=[],playIndex=0;
+  let selecting=false,selectionProject=null,batchBusy=false;const selectedShots=new Set();
   const iconButton=(name,label,action)=>{const b=button('','icon-button',action);b.innerHTML=DirectorIcons[name];b.title=label;b.setAttribute('aria-label',label);return b;};
   function syncCounts(){
     $('library-assets-total').textContent=project?.assets?.length||0;
@@ -10,11 +11,11 @@
   }
   function setTab(value,draw=true){
     if(tab!==value)$('library-search').value='';
-    tab=value;shotStamp='';libraryStamp='';
+    if(tab!==value){selecting=false;selectedShots.clear();}tab=value;shotStamp='';libraryStamp='';
     $('asset-library').dataset.tab=tab;
     for(const name of ['assets','shots'])$('library-tab-'+name).setAttribute('aria-pressed',String(tab===name));
     $('library-new').textContent=tab==='shots'?'＋ New shot':'＋ New asset';
-    $('library-play').hidden=tab!=='shots';$('import-asset').hidden=tab!=='assets';
+    $('library-select').hidden=false;$('library-batch').hidden=!selecting;$('import-asset').hidden=tab!=='assets';
     for(const id of ['library-source','library-kind'])$(id).closest('.library-filter').hidden=tab!=='assets';
     $('library-search').placeholder=tab==='shots'?'Search shots…':'Search assets…';
     if(draw){$('library-search').value='';renderLibrary(true);}
@@ -27,18 +28,98 @@
     if(!await confirmAssetDeletion({name:shot.title}))return;
     await DirectorVideo.deleteShot(shot.id);window.render();renderLibrary(true);toast('Shot deleted.');
   }
+  function toggleShot(id){if(batchBusy)return;selecting=true;selectedShots.has(id)?selectedShots.delete(id):selectedShots.add(id);renderLibrary(true);}
+  function visibleShots(){const term=$('library-search').value.trim().toLowerCase();return videoShots().filter(s=>(s.title+' '+s.prompt).toLowerCase().includes(term));}
+  const assetItems=()=>librarySource?libraryAssets:(project?.assets||[]);
+  const items=()=>tab==='shots'?videoShots():assetItems();
+  const visibleItems=()=>tab==='shots'?visibleShots():assetItems().filter(a=>($('library-kind').value==='all'||a.kind===$('library-kind').value)&&(a.name+' '+a.handle+' '+a.description).toLowerCase().includes($('library-search').value.toLowerCase()));
+  function prepareSelection(){
+    const scope=(project?.id||'')+':'+tab+':'+(tab==='assets'?librarySource:'');
+    if(selectionProject!==scope){selectionProject=scope;selectedShots.clear();selecting=false;}
+    for(const id of selectedShots)if(!items().some(s=>s.id===id))selectedShots.delete(id);selectionControls();
+  }
+  function addAssetSelector(card,asset){
+    card.classList.toggle('shot-selected',selectedShots.has(asset.id));
+    const select=iconButton('select','Select @'+asset.handle,()=>toggleShot(asset.id));select.classList.add('shot-card-select');select.setAttribute('aria-pressed',String(selectedShots.has(asset.id)));select.disabled=batchBusy;card.append(select);
+  }
+  function selectionControls(){
+    $('library-select').textContent=selecting?'Done':'Select';$('library-select').setAttribute('aria-pressed',String(selecting));
+    $('library-batch').hidden=!selecting;
+    const chosen=items().filter(s=>selectedShots.has(s.id));
+    const busy=tab==='shots'?chosen.some(s=>s.drafts.some(active)):chosen.some(a=>(project?.shots||[]).some(s=>s.id===a.source_shot_id&&s.drafts.some(active)));
+    const foreign=tab==='assets'&&Boolean(librarySource);
+    $('library-selected-count').textContent=chosen.length+' selected';
+    $('library-download-selected').disabled=batchBusy||!chosen.some(s=>tab==='shots'?latest(s):s.file);
+    $('library-delete-selected').disabled=batchBusy||foreign||!chosen.length||busy;
+    $('library-delete-selected').title=foreign?'Open this project to delete its assets.':busy?'Wait for selected items to finish generating.':'Delete selected items';
+    $('library-select-all').disabled=batchBusy||!visibleItems().length;$('library-clear-selection').disabled=batchBusy||!chosen.length;
+    $('library-select').disabled=batchBusy;
+  }
+  const shotFilename=(title,extension='.mp4')=>(String(title||'Shot').replace(/[<>:"/\\|?*\x00-\x1f]/g,'_').trim().replace(/[. ]+$/,'').slice(0,120)||'Shot')+extension;
+  async function unusedVideoName(directory,filename){
+    const dot=filename.lastIndexOf('.'),stem=filename.slice(0,dot),extension=filename.slice(dot);let name=filename,index=1;
+    for(;;){
+      try{await directory.getFileHandle(name);}
+      catch(error){
+        if(error.name==='NotFoundError')return name;
+        if(error.name!=='TypeMismatchError')throw error;
+      }
+      name=`${stem} (${index++})${extension}`;
+    }
+  }
+  async function downloadShotFiles(projectId,shots){
+    const files=shots.map(shot=>tab==='shots'?{title:shot.title,take:latest(shot),extension:'.mp4'}:{title:shot.name||shot.handle,take:shot.file?shot:null,extension:/\.(png|jpe?g|webp)$/i.exec(shot.file||'')?.[0]||'.png'}).filter(file=>file.take);
+    if(!files.length)return;
+    if(typeof window.showDirectoryPicker!=='function'){
+      for(const file of files){
+        const link=document.createElement('a');link.href=fileURL(file.take.file,projectId)+'?v='+encodeURIComponent(file.take.audio_applied_at||file.take.id);
+        link.download=shotFilename(file.title,file.extension);document.body.append(link);link.click();link.remove();
+      }
+      toast('File downloads requested. Your browser controls the folder and may ask to allow multiple downloads.');return;
+    }
+    let directory;
+    try{directory=await window.showDirectoryPicker({id:'directors-cut-shots',mode:'readwrite'});}
+    catch(error){if(error.name==='AbortError')return;throw error;}
+    let count=0;
+    try{
+      for(const file of files){
+        $('library-download-selected').textContent=`Saving ${count+1} / ${files.length}…`;
+        const response=await fetch(fileURL(file.take.file,projectId)+'?v='+encodeURIComponent(file.take.audio_applied_at||file.take.id));
+        if(!response.ok||!response.body)throw new Error('Could not download '+file.title+'.');
+        const name=await unusedVideoName(directory,shotFilename(file.title,file.extension));
+        let created=false;
+        try{
+          const handle=await directory.getFileHandle(name,{create:true});created=true;
+          const output=await handle.createWritable();await response.body.pipeTo(output);count++;
+        }catch(error){if(created)await directory.removeEntry(name).catch(()=>{});throw error;}
+      }
+      toast(`${count} files saved to ${directory.name}.`);
+    }catch(error){throw new Error(`${count} / ${files.length} saved. ${error.message}`);}
+  }
+  async function batchAction(action){
+    if(batchBusy||!selectedShots.size)return;const projectId=tab==='assets'?(librarySource||project.id):project.id,ids=[...selectedShots],kind=tab==='shots'?'shots':'assets';
+    if(action==='delete'&&!await confirmAssetDeletion({name:ids.length+' selected '+kind,message:`Delete ${ids.length} selected ${kind} and their takes?`},true))return;
+    batchBusy=true;selectionControls();
+    try{
+      if(action==='delete'){if(tab==='shots')await DirectorVideo.deleteShots(ids);else await deleteSelectedLibraryAssets(ids);selectedShots.clear();toast(ids.length+' '+kind+' deleted.');}
+      else await downloadShotFiles(projectId,items().filter(shot=>ids.includes(shot.id)));
+    }finally{batchBusy=false;$('library-download-selected').textContent='Download';renderLibrary(true);}
+  }
   function renderShots(force=false){
     if($('asset-library').hidden)return;
-    const term=$('library-search').value.trim().toLowerCase(),shots=videoShots().filter(s=>(s.title+' '+s.prompt).toLowerCase().includes(term));
-    const stamp=JSON.stringify([project?.id,term,shots.map(s=>[s.id,s.title,s.approved?.draft_id,s.drafts.map(d=>[d.id,d.status,d.file,d.audio_applied_at])])]);
+    prepareSelection();
+    const term=$('library-search').value.trim().toLowerCase(),shots=visibleShots();
+    const stamp=JSON.stringify([project?.id,term,selecting,[...selectedShots],shots.map(s=>[s.id,s.title,s.approved?.draft_id,s.drafts.map(d=>[d.id,d.status,d.file,d.audio_applied_at])])]);
     if(!force&&stamp===shotStamp)return;shotStamp=stamp;
-    $('library-play').disabled=!videoShots().some(latest);
+
     $('library-items').replaceChildren(...shots.map(shot=>{
       const take=latest(shot),card=document.createElement('article');card.className='asset-card shot-card'+(take&&shot.approved?.draft_id===take.id?' approved-shot':'');
-      const cover=button('','asset-cover',()=>safe(()=>openShot(shot.id)));cover.title='Open shot';cover.setAttribute('aria-label','Open '+shot.title);
+      card.classList.toggle('shot-selected',selectedShots.has(shot.id));
+      const select=iconButton('select','Select '+shot.title,()=>toggleShot(shot.id));select.classList.add('shot-card-select');select.setAttribute('aria-pressed',String(selectedShots.has(shot.id)));select.disabled=batchBusy;card.append(select);
+      const cover=button('','asset-cover',()=>selecting?toggleShot(shot.id):safe(()=>openShot(shot.id)));cover.title='Open shot';cover.setAttribute('aria-label','Open '+shot.title);
       if(take){
         const video=document.createElement('video');video.muted=true;video.playsInline=true;video.preload='none';video.dataset.lazyVideo=fileURL(take.file)+'#t=0.1';cover.append(video);window.DirectorMotion?.observeVideo(video);
-        const play=iconButton('play','Play '+shot.title,()=>playShots(shot.id,false));play.classList.add('shot-card-play');card.append(play);
+
       }else{const empty=document.createElement('span');empty.className='asset-cover-empty';empty.textContent=shot.drafts.some(active)?'Generating…':'No takes yet';cover.append(empty);}
       const count=document.createElement('span');count.className='asset-cover-takes';count.textContent=shot.drafts.filter(d=>d.status==='succeeded').length+' takes'+(take&&shot.approved?.draft_id===take.id?' · Approved':'');cover.append(count);
       const identity=document.createElement('div');identity.className='asset-identity';
@@ -82,7 +163,11 @@
   $('shot-player-dialog').addEventListener('close',()=>{const video=$('shot-player-stage').querySelector('video');if(video){video.pause();video.removeAttribute('src');video.load();}$('shot-player-stage').replaceChildren();playback=[];});
   for(const [name,delta] of [['previous',-1],['next',1]])$('shot-player-'+name).onclick=()=>{playIndex=Math.max(0,Math.min(playback.length-1,playIndex+delta));showPlayback();};
   $('shot-player-edit').onclick=()=>{const id=playback[playIndex]?.id;$('shot-player-dialog').close();if(id)safe(()=>openShot(id));};
-  $('library-play').onclick=()=>playShots();
+  $('library-select').onclick=()=>{selecting=!selecting;if(!selecting)selectedShots.clear();renderLibrary(true);};
+  $('library-select-all').onclick=()=>{for(const item of visibleItems())selectedShots.add(item.id);renderLibrary(true);};
+  $('library-clear-selection').onclick=()=>{selectedShots.clear();renderLibrary(true);};
+  $('library-download-selected').onclick=()=>safe(()=>batchAction('download'));
+  $('library-delete-selected').onclick=()=>safe(()=>batchAction('delete'));
   for(const name of ['assets','shots'])$('library-tab-'+name).onclick=()=>setTab(name);
   $('library-new').onclick=()=>safe(async()=>{
     closeLibrary();
@@ -140,5 +225,5 @@
   $('project-picker').onclick=()=>safe(async()=>{await projectList();$('projects-search').value='';drawProjects();$('projects-dialog').showModal();$('projects-search').focus();});
   $('projects-close').onclick=()=>$('projects-dialog').close();$('projects-search').oninput=drawProjects;
   $('projects-new').onclick=()=>{$('projects-dialog').close();$('new-project').click();};
-  window.DirectorLibrary={get tab(){return tab;},setTab,syncCounts,renderShots,setProjects(value){projects=value;if($('projects-dialog').open)drawProjects();}};
+  window.DirectorLibrary={get tab(){return tab;},setTab,syncCounts,renderShots,prepareSelection,addAssetSelector,get selectionStamp(){return [selecting,[...selectedShots]];},selectAsset(id){if(!selecting)return false;toggleShot(id);return true;},setProjects(value){projects=value;if($('projects-dialog').open)drawProjects();}};
 })();

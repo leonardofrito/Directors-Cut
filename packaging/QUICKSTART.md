@@ -6,11 +6,11 @@ Create assets and reference-driven video with your own ComfyUI.
 
 | Platform | Download | Setup |
 | --- | --- | --- |
-| Windows x64 | [Windows EXE](https://github.com/leonardofrito/Directors-Cut/releases/download/v0.1.0-rc.5/DirectorsCut-0.1.0-rc.5-windows-x64.exe) | Open the file; Python is included. |
-| macOS | [Source package](https://github.com/leonardofrito/Directors-Cut/releases/download/v0.1.0-rc.5/DirectorsCut-0.1.0-rc.5-source.zip) | Extract, then follow the source instructions below. |
-| Linux | [Source package](https://github.com/leonardofrito/Directors-Cut/releases/download/v0.1.0-rc.5/DirectorsCut-0.1.0-rc.5-source.zip) | Extract, then follow the source instructions below. |
+| Windows x64 | [Windows EXE](https://github.com/leonardofrito/Directors-Cut/releases/download/v0.1.0-rc.6/DirectorsCut-0.1.0-rc.6-windows-x64.exe) | Open the file; Python is included. |
+| macOS | [Source package](https://github.com/leonardofrito/Directors-Cut/releases/download/v0.1.0-rc.6/DirectorsCut-0.1.0-rc.6-source.zip) | Extract, then follow the source instructions below. |
+| Linux | [Source package](https://github.com/leonardofrito/Directors-Cut/releases/download/v0.1.0-rc.6/DirectorsCut-0.1.0-rc.6-source.zip) | Extract, then follow the source instructions below. |
 
-[All release files and notes](https://github.com/leonardofrito/Directors-Cut/releases/tag/v0.1.0-rc.5)
+[All release files and notes](https://github.com/leonardofrito/Directors-Cut/releases/tag/v0.1.0-rc.6)
 
 Native macOS and Linux packages are not published yet. Their links above download source code, not an EXE or a ready-made app. The Windows build is currently unsigned.
 

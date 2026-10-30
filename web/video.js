@@ -12,7 +12,7 @@
   const scene=()=>project?.shots.find(s=>s.id===sceneId&&s.mode==='video');
   function normalizeModelRecipe(){
     const filename=selectedVideoModels['127'];if(!filename)return;
-    const family=/fast[-_]?h3.*omni/i.test(filename)?'fast-omni':$v('preset').value==='vsa'?'vsa':'original';
+    const family=/fast[-_]?h3.*omni/i.test(filename)?'fast-omni':'original';
     $v('preset').value=family;
     if(family==='fast-omni'){delete selectedVideoModels['145'];delete selectedVideoModels['156'];}
   }
@@ -436,6 +436,10 @@
   function showScenes(){if(project)openLibrary('all','shots');}
   async function selectVideoShot(id,takeId){await save();if(!active)await enter();const target=project.shots.find(s=>s.id===id&&s.mode==='video');if(target){load(target);if(target.drafts.some(d=>d.id===takeId))selected=takeId;render(project);}}
   async function deleteVideoShot(id){await save();project=await api(`/projects/${project.id}/shots/${id}`,'DELETE');if(id===sceneId){sceneId=null;selected=null;const next=project.shots.find(s=>s.mode==='video');if(next)load(next);else if(active)await newScene();}render(project);}
+  async function deleteVideoShots(ids){
+    await save();project=await api(`/projects/${project.id}/shots/batch`,'POST',{action:'delete',ids});
+    if(ids.includes(sceneId)){sceneId=null;selected=null;const next=project.shots.find(s=>s.mode==='video');if(next)load(next);else if(active)await newScene();}render(project);
+  }
   function openPicker(){if(!project)return;$v('picker-search').value='';$v('asset-picker').showModal();renderPicker();$v('picker-search').focus();}
   function renderPicker(){
     if(!$v('asset-picker').open)return;
@@ -505,7 +509,7 @@
   }
   function renderSettings(){
     if(!active&&videoPreferences)$v('selflift').checked=Boolean(videoPreferences.selflift);
-    $v('selflift-status').textContent=config?.video?.selflift?.ready?'SelfLift node loaded.':'Install the optional SelfLift node under Connection → Workflow nodes.';
+    $v('selflift-status').textContent=config?.video?.selflift?.ready?'':'Install the optional SelfLift node under Connection → Workflow nodes.';
     if(!active&&videoPreferences){$v('preset').value=videoPreferences.video_preset||'original';selectedVideoModels={...videoPreferences.model_files};}
     normalizeModelRecipe();
     const profile=selectedReadiness(),root=$v('model-files');
@@ -723,6 +727,6 @@
   document.getElementById('tab-video').onclick=()=>safe(enter);
   document.addEventListener('keydown',event=>{if(!active||event.key!=='Enter'||!event.ctrlKey||event.isComposing||document.querySelector('dialog[open]'))return;event.preventDefault();event.stopImmediatePropagation();if(!event.repeat)safe(run);});
   function syncReferences(){const current=scene();if(!current)return;$v('prompt').value=current.prompt;refs=[...(current.reference_ids||[])];mentionedIds=new Set();syncMentionReferences();render(project);}
-  window.DirectorVideo={get active(){return active;},enter,leave,render,useAsset,referenceIds,save,openPicker,renderSettings,syncReferences,selectShot:selectVideoShot,deleteShot:deleteVideoShot,newShot:newScene};
+  window.DirectorVideo={get active(){return active;},enter,leave,render,useAsset,referenceIds,save,openPicker,renderSettings,syncReferences,selectShot:selectVideoShot,deleteShot:deleteVideoShot,deleteShots:deleteVideoShots,newShot:newScene};
 })();
 

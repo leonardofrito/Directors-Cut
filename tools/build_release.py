@@ -92,7 +92,7 @@ def source_archive():
             archive.write(ROOT/'docs'/name,'docs/'+name)
         for name in ['directors-cut-banner.png','directors-cut-assets.png','directors-cut-video.png']:
             archive.write(ROOT/'docs/images'/name,'docs/images/'+name)
-        for name in ['test_core.py','test_engine_connection.py','test_model_downloads.py','test_selflift_setup.py','test_release.py','test_windows_signing.py']:
+        for name in ['test_core.py','test_engine_connection.py','test_model_downloads.py','test_selflift_setup.py','test_release.py','test_windows_signing.py','test_library_batches.py']:
             path=ROOT/'tests'/name
             if path.exists():archive.write(path,'tests/'+name)
         for path in (ROOT/'packaging').glob('*'):

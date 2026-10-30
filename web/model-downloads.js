@@ -41,10 +41,10 @@
   const files=(config?.video?.enhancer?.files||[]),opts=options('shared','enhancer',files),previous=sharedValue();
   select.replaceChildren(new Option('Choose shared enhancer…',''),...opts);select.value=previous;
   const box=document.getElementById('shared-enhancer-download');box.replaceChildren();decorate(box,select,'shared','enhancer');
-  document.getElementById('shared-enhancer-status').textContent='One model for Assets and Video, with separate image and REF2VA instructions.';
+  document.getElementById('shared-enhancer-status').textContent='';
  }
  function setupShared(){
-  const tabs=document.querySelector('#models-dialog .settings-tabs'),section=document.createElement('section');section.id='shared-enhancer-settings';section.hidden=true;section.setAttribute('role','tabpanel');section.setAttribute('aria-labelledby','settings-enhancer');section.innerHTML='<h3>Prompt enhancer · Assets + Video</h3><label for="shared-enhancer-model">Model</label><select id="shared-enhancer-model"></select><div id="shared-enhancer-download" class="model-file"></div><p id="shared-enhancer-status" class="control-help"></p><button type="button" id="shared-enhancer-refresh">Refresh installed models</button>';
+  const tabs=document.querySelector('#models-dialog .settings-tabs'),section=document.createElement('section');section.id='shared-enhancer-settings';section.hidden=true;section.setAttribute('role','tabpanel');section.setAttribute('aria-labelledby','settings-enhancer');section.innerHTML='<h3>Prompt enhancer</h3><label for="shared-enhancer-model">Model</label><select id="shared-enhancer-model"></select><div id="shared-enhancer-download" class="model-file"></div><p id="shared-enhancer-status" class="control-help"></p><button type="button" id="shared-enhancer-refresh">Refresh installed models</button><details class="model-source-links"><summary>Sources</summary><div id="shared-enhancer-links"></div></details>';
   document.getElementById('connection-settings').before(section);const tab=document.createElement('button');tab.type='button';tab.id='settings-enhancer';tab.setAttribute('role','tab');tab.setAttribute('aria-controls',section.id);tab.textContent='Prompt enhancer';tab.onclick=()=>{selectSettingsSection('enhancer');renderShared();};tabs.insertBefore(tab,document.getElementById('settings-connection'));
   document.querySelector('.enhancer-model-control').hidden=true;document.querySelector('.enhancer-model-control').previousElementSibling.hidden=true;
   document.getElementById('shared-enhancer-model').onchange=event=>{const file=event.target.value;try{localStorage.setItem(sharedKey,file);}catch{}document.dispatchEvent(new CustomEvent('shared-enhancer-change',{detail:file}));};
@@ -75,7 +75,9 @@
   }
   primary.onclick=()=>safe(async()=>{const m=entry(scope,role,select.value);if(!m)return;const result=await api('/models/downloads','POST',{id:m.id});jobs=jobs.filter(x=>x.id!==m.id);jobs.push(result);update();});
   cancel.onclick=()=>safe(async()=>{const m=entry(scope,role,select.value);await api('/models/downloads/'+encodeURIComponent(m.id)+'/cancel','POST',{});await poll();});
-  select.addEventListener('change',update);actions.append(primary,cancel,state);box.append(actions,progress,source);box._downloadUpdate=update;update();
+  select.addEventListener('change',update);actions.append(primary,cancel,state);box.append(actions,progress);
+  const linkBox=document.getElementById(scope==='qwen21'?'model-links':scope==='video'?'video-model-links':'shared-enhancer-links');
+  if(linkBox){const key=scope+'-'+role;linkBox.querySelector(`[data-source-role="${key}"]`)?.remove();source.dataset.sourceRole=key;linkBox.append(source);}box._downloadUpdate=update;update();
  }
  async function poll(){
   if(!document.getElementById('models-dialog')?.open&&!jobs.some(j=>active.has(j.status)))return;

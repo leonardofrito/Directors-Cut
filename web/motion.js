@@ -134,6 +134,7 @@
   const pressTimers=new WeakMap();
   function press(button,event){
     if(!button||button.disabled||button.matches('.video-ratio-option')||reduce.matches)return;
+    if(getComputedStyle(button).position==='static')button.classList.add('press-anchor');
     const rect=button.getBoundingClientRect();button.style.setProperty('--press-x',(event?.clientX?event.clientX-rect.left:rect.width/2)+'px');button.style.setProperty('--press-y',(event?.clientY?event.clientY-rect.top:rect.height/2)+'px');
     clearTimeout(pressTimers.get(button));button.classList.remove('press-feedback');
     requestAnimationFrame(()=>{if(!button.isConnected)return;button.classList.add('press-feedback');pressTimers.set(button,setTimeout(()=>button.classList.remove('press-feedback'),430));});

@@ -2,6 +2,7 @@
 (() => {
   const svg=path=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${path}</svg>`;
   window.DirectorIcons={
+    select:svg('<rect x="4" y="4" width="16" height="16" rx="4"/><path d="m8 12 3 3 5-6"/>'),
     chevron:svg('<path d="m6 9 6 6 6-6"/>'),
     close:svg('<path d="m6 6 12 12M6 18 18 6"/>'),
     plus:svg('<path d="M12 5v14M5 12h14"/>'),

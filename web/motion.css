@@ -123,7 +123,8 @@
 .video-camera-tab:hover:not(:disabled),.media-upload-control:hover:not(:disabled),.generation-controls>button:hover:not(:disabled){box-shadow:inset 0 1px #ffffff12;border-color:#dddddd3b}
 .video-camera-tab:before,.media-upload-control:before,.generation-controls>button:before{content:'';position:absolute;inset:0;border-radius:inherit;background:radial-gradient(90px circle at var(--hover-x,50%) var(--hover-y,0%),#ffffff0c,transparent);opacity:0;transition:opacity .2s;pointer-events:none;z-index:-1}
 .video-camera-tab:hover:before,.media-upload-control:hover:before,.generation-controls>button:hover:before{opacity:1}
-button.press-feedback{position:relative;isolation:isolate;overflow:hidden}
+button.press-anchor{position:relative}
+button.press-feedback{isolation:isolate;overflow:hidden}
 button.press-feedback:after{content:'';position:absolute;left:var(--press-x,50%);top:var(--press-y,50%);width:150%;aspect-ratio:1;border-radius:50%;background:radial-gradient(circle,#ffffff24,transparent 65%);pointer-events:none;z-index:3;animation:control-press .42s cubic-bezier(.15,.7,.25,1) both}
 .advanced-tabs>button.has-media.press-feedback:after{left:var(--press-x,50%);top:var(--press-y,50%);bottom:auto;width:150%;height:auto;box-shadow:none;background:radial-gradient(circle,#ffffff24,transparent 65%)}
 @keyframes header-light{50%{opacity:.65;transform:translateX(6%)}}

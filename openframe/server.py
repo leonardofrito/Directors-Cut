@@ -6,6 +6,7 @@ import os
 import re
 import secrets
 import uuid
+import zipfile
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -513,6 +514,69 @@ class Studio:
         direction.update(lens='Natural perspective', focal_length=focal, light_notes=notes, prompt_enhancer=enhance)
         return dict(prompt=prompt, style=data['style'], camera=data['camera'], ratio=data['ratio'], steps=steps, seed=seed, title=str(data.get('title', 'Untitled shot'))[:120], workflow_id=workflow_id, model_format=model_format, model_files=files, reference_ids=list(dict.fromkeys(reference_ids)), mode=mode, asset_kind=asset_kind, character_traits=character_traits, location_traits=location_traits, prop_traits=prop_traits, **direction)
 
+    async def batch_assets(self, request):
+        p = self.store.load(request.match_info['project'])
+        ids = (await request.json()).get('ids')
+        if not isinstance(ids, list) or not ids or len(ids) > 500 or any(not isinstance(i, str) for i in ids):
+            raise ValueError('Select between 1 and 500 assets.')
+        # Mutate only the freshly loaded project; save once after every deletion validates.
+        for asset_id in dict.fromkeys(ids):
+            delete_asset(self.store, p, asset_id, save=False)
+        self.store.save(p)
+        return web.json_response(p)
+
+    async def batch_shots(self, request):
+        p = self.store.load(request.match_info['project'])
+        data = await request.json()
+        ids = data.get('ids')
+        if not isinstance(ids, list) or not ids or len(ids) > 500 or any(not isinstance(i, str) for i in ids):
+            raise ValueError('Select between 1 and 500 shots.')
+        ids = list(dict.fromkeys(ids))
+        shots = [self.store.shot(p, i) for i in ids]
+        if any(s.get('mode') != 'video' for s in shots):
+            raise ValueError('Select video shots only.')
+        if data.get('action') == 'delete':
+            if any(d['status'] in ACTIVE for shot in shots for d in shot.get('drafts', [])):
+                raise ValueError('Wait for selected shots to finish generating before deleting them.')
+            p['shots'] = [shot for shot in p['shots'] if shot['id'] not in ids]
+            p.setdefault('archived_shots', []).extend(shots)
+            p['storyboard'] = [panel for panel in p.get('storyboard', []) if panel['shot_id'] not in ids]
+            self.store.save(p)
+            return web.json_response(p)
+        if data.get('action') != 'download':
+            raise ValueError('Unknown batch action.')
+        files, names = [], set()
+        for shot in shots:
+            completed = [d for d in shot.get('drafts', []) if d['status'] == 'succeeded' and d.get('file')]
+            take = next((d for d in completed if d['id'] == (shot.get('approved') or {}).get('draft_id')), completed[-1] if completed else None)
+            if not take:
+                continue
+            path = self.store.file(p['id'], take['file'])
+            if path.suffix.lower() != '.mp4' or not path.is_file():
+                raise ValueError('A selected video file is unavailable.')
+            stem = re.sub(r'[<>:"/\\|?*\x00-\x1f]', '_', shot.get('title') or 'Shot').strip().rstrip('.')[:120] or 'Shot'
+            name, index = stem + '.mp4', 1
+            while name.casefold() in names:
+                name = f'{stem} ({index}).mp4'
+                index += 1
+            names.add(name.casefold())
+            files.append((path, name))
+        if not files:
+            raise ValueError('The selected shots have no completed videos.')
+        relative = f'exports/Selected shots-{uuid.uuid4().hex[:10]}.zip'
+        destination = self.store.file(p['id'], relative)
+        def pack():
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            try:
+                with zipfile.ZipFile(destination, 'w', compression=zipfile.ZIP_STORED, allowZip64=True) as archive:
+                    for path, name in files:
+                        archive.write(path, name)
+            except Exception:
+                destination.unlink(missing_ok=True)
+                raise
+        await asyncio.to_thread(pack)
+        return web.json_response({'download': relative, 'count': len(files)})
+
     async def shot(self, request):
         p = self.store.load(request.match_info['project'])
         s = self.store.shot(p, request.match_info['shot'])
@@ -790,8 +854,10 @@ def create_app(shutdown_event=None):
     app.router.add_post('/api/projects/{project}/shots', studio.shots)
     app.router.add_route('GET', '/api/projects/{project}/assets', studio.assets)
     app.router.add_route('POST', '/api/projects/{project}/assets', studio.assets)
+    app.router.add_post('/api/projects/{project}/assets/batch', studio.batch_assets)
     app.router.add_patch('/api/projects/{project}/assets/{asset}', studio.asset_action)
     app.router.add_delete('/api/projects/{project}/assets/{asset}', studio.asset_action)
+    app.router.add_post('/api/projects/{project}/shots/batch', studio.batch_shots)
     app.router.add_put('/api/projects/{project}/shots/{shot}', studio.shot)
     app.router.add_delete('/api/projects/{project}/shots/{shot}', studio.shot)
     app.router.add_post('/api/projects/{project}/shots/{shot}/references', studio.attach_reference_image)

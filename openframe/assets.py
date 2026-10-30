@@ -348,7 +348,7 @@ def archive_asset_studies(store, project, asset):
         project.setdefault('archived_shots', []).append(study)
 
 
-def delete_asset(store, project, asset_id):
+def delete_asset(store, project, asset_id, *, save=True):
     asset = next((a for a in project.get('assets', []) if a['id'] == asset_id), None)
     if not asset:
         raise ValueError('Asset not found.')
@@ -362,4 +362,5 @@ def delete_asset(store, project, asset_id):
         settings = shot
         settings['reference_ids'] = [x for x in settings.get('reference_ids', []) if x != asset_id]
         settings['prompt'] = re.sub(r'(?<![\w@])@' + re.escape(asset['handle']) + r'\b', asset['name'], settings.get('prompt', ''))
-    store.save(project)
+    if save:
+        store.save(project)

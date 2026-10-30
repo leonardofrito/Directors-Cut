@@ -1,3 +1,11 @@
+# 0.1.0-rc.6
+
+- Select multiple assets or shots in the Library to download or delete them together. Deletion confirms once and refuses active generations; deleted assets and their studies retain the existing archive recovery behavior.
+- Download individual images and MP4s directly to a chosen folder in supported browsers. Existing names receive numbered suffixes instead of being overwritten. Other browsers use their normal download settings; ZIP is not the default.
+- Fixed click feedback moving corner buttons before a click could complete. Selection buttons stay anchored and show their selected state.
+- Compact SelfLift control, fewer model-setup helper texts and source links grouped at the bottom. Omni REF automatically uses its VSA recipe without an additional toggle or label; normal H3 uses the original recipe.
+- Windows package checks use an isolated fake engine with no GPU generation. The EXE remains unsigned. macOS/Linux source instructions remain available; no new native-platform claim is made.
+
 # 0.1.0-rc.5
 
 - Clearer settings typography with native system fonts, larger helper text and no text blur/shadow effects. The shared installed Qwen3.5 4B INT8 enhancer has a readable precision label.

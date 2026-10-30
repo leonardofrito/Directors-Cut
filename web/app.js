@@ -117,11 +117,9 @@ function renderModels() {
     const info=document.createElement('code');
     const folder={UNETLoader:'diffusion_models',CLIPLoader:'text_encoders',VAELoader:'vae'}[loader.kind];
     info.textContent=`ComfyUI/models/${folder}/ · ${loader.target_kind}${loader.options.length?'':' · Expected family: '+loader.expected}`;
-    box.append(label,select,info);if(downloadOptions){downloadOptions.decorate(box,select,'qwen21',role);if(role==='encoder')downloadOptions.formatTabs(box,select,'image-encoder');}return box;
+    box.append(label,select);if(downloadOptions){downloadOptions.decorate(box,select,'qwen21',role);if(role==='encoder')downloadOptions.formatTabs(box,select,'image-encoder');}return box;
   }));
   $('model-missing').replaceChildren(...format.missing.map(message=>{const p=document.createElement('p');p.textContent=message;return p;}));
-  $('model-links').replaceChildren(...workflow.links.map(url=>{const a=document.createElement('a');a.href=url;a.target='_blank';a.rel='noreferrer';a.textContent=decodeURIComponent(url.replace('https://huggingface.co/',''));return a;}));
-  const guide=document.createElement('a');guide.href='https://github.com/leejet/ComfyUI-GGUF';guide.target='_blank';guide.rel='noreferrer';guide.textContent='GGUF loader installation & compatibility ↗';$('model-links').append(guide);
   lock();
 }
 function renderLoras(){
@@ -572,11 +570,13 @@ function renderLibrary(force=false) {
   if($('asset-library').hidden)return;
   const kind=$('library-kind').value,query=$('library-search').value.toLowerCase();
   const list=source.filter(a=>(kind==='all'||a.kind===kind)&&(a.name+' '+a.handle+' '+a.description).toLowerCase().includes(query));
-  const stamp=JSON.stringify([project?.id,librarySource,kind,query,list,resolvedReferenceIds()]);if(!force&&stamp===libraryStamp)return;libraryStamp=stamp;
+  window.DirectorLibrary?.prepareSelection();
+  const stamp=JSON.stringify([project?.id,librarySource,kind,query,list,resolvedReferenceIds(),window.DirectorLibrary?.selectionStamp]);if(!force&&stamp===libraryStamp)return;libraryStamp=stamp;
   if(!list.length){const p=document.createElement('p');p.className='library-empty';p.textContent=librarySource?'No matching assets in this project.':'No assets yet.';$('library-items').replaceChildren(p);return;}
   $('library-items').replaceChildren(...list.map(a=>{
     const card=document.createElement('article');card.className='asset-card'+(!window.DirectorVideo?.active&&a.source_shot_id===shotId?' is-current':'');
     const image=button('','asset-cover',()=>safe(async()=>{
+      if(window.DirectorLibrary?.selectAsset(a.id))return;
       if(!a.source_shot_id)return;
       await saveNotes(false);const pid=librarySource || project.id;closeLibrary();
       if(project.id!==pid)await openProject(pid);
@@ -595,7 +595,7 @@ function renderLibrary(force=false) {
       handle.ondblclick=()=>editAssetHandle(a,identity);handle.tabIndex=0;handle.onkeydown=event=>{if(event.key==='Enter'||event.key==='F2'){event.preventDefault();editAssetHandle(a,identity);}};
       identity.append(edit);
     }
-    card.append(image,identity);
+    card.append(image,identity);window.DirectorLibrary?.addAssetSelector(card,a);
     const attached=!librarySource&&resolvedReferenceIds().includes(a.id);
     const use=button(librarySource?'＋ Copy to project':attached?'✓ Attached':'＋ Use reference','subtle',()=>safe(async()=>{
       if(librarySource){await api(`/projects/${project.id}/assets`,'POST',{source_project:librarySource,source_asset:a.id});project=await api(`/projects/${project.id}`);toast('Asset copied to this project.');renderLibrary(true);}
@@ -625,6 +625,19 @@ function renderLibrary(force=false) {
   }));
   window.DirectorDropdowns.sync();
 }
+async function deleteSelectedLibraryAssets(ids){
+  if(librarySource)throw new Error('Open this project before deleting its assets.');
+  if(window.DirectorVideo?.active)await DirectorVideo.save();else await saveNotes(false);
+  project=await api(`/projects/${project.id}/assets/batch`,'POST',{ids});
+  if(window.DirectorVideo?.active){DirectorVideo.syncReferences();return;}
+  referenceIds=referenceIds.filter(id=>!ids.includes(id));
+  if(!currentShot()){
+    shotId=visibleStudies()[0]?.id;selectedDraft=null;
+    if(!shotId){const study=await api(`/projects/${project.id}/shots`,'POST',{mode:creationMode});project.shots.push(study);shotId=study.id;}
+    setEditor(currentShot());
+  }else{$('prompt').value=currentShot().prompt;}
+  render();renderReferenceChips();
+}
 function editAssetHandle(asset,identity) {
   if(identity.querySelector('input'))return;
   const input=document.createElement('input');input.className='asset-handle-input';input.value='@'+asset.handle;input.maxLength=121;input.setAttribute('aria-label','Edit asset handle');
@@ -645,10 +658,10 @@ function editAssetHandle(asset,identity) {
 }
 let skipAssetDeleteConfirmation=false;
 try{skipAssetDeleteConfirmation=sessionStorage.getItem('directors-cut-skip-delete')==='true';}catch{}
-function confirmAssetDeletion(asset) {
-  if(skipAssetDeleteConfirmation)return Promise.resolve(true);
+function confirmAssetDeletion(asset,force=false) {
+  if(skipAssetDeleteConfirmation&&!force)return Promise.resolve(true);
   const dialog=$('delete-asset-dialog');if(dialog.open)return Promise.resolve(false);
-  $('delete-asset-message').textContent=`Are you sure you want to delete “${asset.name}”?`;
+  $('delete-asset-message').textContent=asset.message||`Are you sure you want to delete “${asset.name}”?`;
   $('skip-delete-confirmation').checked=false;dialog.returnValue='cancel';
   return new Promise(resolve=>{
     dialog.addEventListener('close',()=>{

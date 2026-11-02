@@ -1,0 +1,10 @@
+[
+  {
+    "id": "bank-of-ideas",
+    "name": "Bank of Ideas",
+    "bundle": "bank-of-ideas/project.zip",
+    "shots": 14,
+    "assets": 12,
+    "description": "A complete example film. Create an actor and cast them in a bank scene."
+  }
+]

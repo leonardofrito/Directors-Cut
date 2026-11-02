@@ -12,6 +12,7 @@ async def quit_app(request):
     stop=request.app.get('shutdown_event')
     if stop is None:raise ValueError('Close the terminal used to launch this development server.')
     studio=request.app['studio']
+    if any(j['status'] in ('queued','running') for j in getattr(getattr(studio,'sequence_exports',None),'jobs',{}).values()):raise ValueError('Wait for the sequence export to finish before quitting.')
     if getattr(studio,'node_setup',None) and studio.node_setup.running:raise ValueError('Wait until node installation finishes before quitting.')
     if studio.queue_items() or studio.queue.qsize():raise ValueError('Finish or cancel the generation queue before quitting.')
     if any(j['status'] in ('queued','downloading','verifying') for j in studio.model_downloads.snapshot()):raise ValueError('Pause model downloads before quitting.')
@@ -25,5 +26,5 @@ async def open_data(request):
     return web.json_response({'opened':True})
 
 async def license_text(request):
-    names={'app':'LICENSE','third-party':'THIRD_PARTY_NOTICES.md','dependencies':'DEPENDENCY_NOTICES.txt'}
+    names={'app':'LICENSE','third-party':'THIRD_PARTY_NOTICES.md','dependencies':'DEPENDENCY_NOTICES.txt','model-terms':'docs/model-licenses.md','h3':'docs/MiniMax-H3-LICENSE.txt'}
     return web.FileResponse(RESOURCE_ROOT/names[request.match_info['document']])

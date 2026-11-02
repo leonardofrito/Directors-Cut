@@ -34,7 +34,7 @@ through the official Comfy SDK. Open-source app, no paid inference API required.
 
 **Attachments:** native package, source ZIP, quick start, release notes and
 SHA256SUMS. Identify this build as a release candidate until the second-PC test.
-The application is MIT; model licenses and hardware requirements are separate.
+The application code is MIT; model licenses and hardware requirements are separate. MiniMax H3 has territorial and use restrictions, including for local inference and H3-based variants. Link docs/model-licenses.md; do not describe model access or output publication as authorized worldwide.
 
 Choose/approve the public repository and release destination before publishing.
 Code signing, final demo/social post and competition submission are separate steps.

@@ -74,7 +74,7 @@
     $v('mp').value=String(s.megapixels||.5);$v('duration').value=String(s.duration||5);
     selectedVideoModels={...(!exact&&videoPreferences?videoPreferences.model_files:s.model_files)};
     selectedVideoLoras=structuredClone((!exact&&videoPreferences?videoPreferences.loras:s.loras)||[]);
-    videoDirection={...(s.video_direction||{})};delete videoDirection.palette;delete videoDirection.era;delete videoDirection.genre;videoEnhancerModel=(!exact?(window.DirectorModelDownloads?.sharedValue()||videoPreferences?.enhancer_model):s.enhancer_model)||config?.video?.enhancer?.default||'';$v('enhancer-toggle').checked=Boolean(s.prompt_enhancer);
+    videoDirection={...(s.video_direction||{})};if(videoDirection.lens==='Halation vintage')delete videoDirection.lens;delete videoDirection.camera;delete videoDirection.sensor;delete videoDirection.palette;delete videoDirection.lighting;delete videoDirection.era;delete videoDirection.genre;videoEnhancerModel=(!exact?(window.DirectorModelDownloads?.sharedValue()||videoPreferences?.enhancer_model):s.enhancer_model)||config?.video?.enhancer?.default||'';$v('enhancer-toggle').checked=Boolean(s.prompt_enhancer);
     $v('preset').value=(!exact&&videoPreferences?videoPreferences.video_preset:s.video_preset)||'fast-omni';normalizeModelRecipe();refs=[...(s.reference_ids||[])];mentionedIds=new Set();syncMentionReferences();dirty=false;pending=null;
   }
   function save(){
@@ -539,7 +539,7 @@
     renderDirection();renderVideoEnhancer();
   }
   const videoPresetIcons={genre:'render_style',era:'era',tempo:'atmosphere',camera:'pose',sensor:'sensor',lens:'lens_type',aperture:'lens_type',framing:'framing',palette:'grade',lighting:'lighting',movement:'proportions'};
-  const cameraKeys=['camera','sensor','lens','aperture','focal_length'];
+  const cameraKeys=['lens','aperture','focal_length'];
   const focalStops=[5,8,10,12,14,16,18,20,24,28,30,35,40,50,55,65,75,85,95,100,105,135,150,180,200,250,300,400,500];
   const focalPosition=mm=>Math.log(Math.max(5,Math.min(500,mm))/5)/Math.log(100)*1000;
   const focalAt=position=>focalStops.reduce((best,mm)=>Math.abs(focalPosition(mm)-position)<Math.abs(focalPosition(best)-position)?mm:best);
@@ -561,8 +561,8 @@
       const value=videoDirection[activeKey]||'',stamp=JSON.stringify([activeKey,value]);
       if(panel.dataset.stamp===stamp)return;
       if(panel.contains(document.activeElement))return;
-      panel.dataset.stamp=stamp;panel.replaceChildren();
-      const choices=document.createElement('div');choices.className='video-camera-choices';
+      panel.dataset.stamp=stamp;panel.dataset.previewCategory=activeKey;panel.replaceChildren();
+      const choices=document.createElement('div');choices.className='video-camera-choices';if(['movement','framing','tempo','camera','sensor','lens','aperture','focal_length'].includes(activeKey))choices.classList.add('video-movement-previews');
       const choose=selected=>{if(selected)videoDirection[activeKey]=selected;else delete videoDirection[activeKey];changed();};
       const auto=button('Auto','generation-choice',()=>{auto.blur();choose('');});auto.setAttribute('aria-pressed',String(!value));choices.append(auto);
       const numeric=activeKey==='aperture'||activeKey==='focal_length';
@@ -579,8 +579,9 @@
           format:n=>aperture?category.options[n]:(Math.abs(n-focalPosition(currentFocal))<.001?currentFocal:focalAt(n))+' mm',
           onChange:n=>choose(aperture?category.options[n]:(Math.abs(n-focalPosition(currentFocal))<.001?currentFocal:focalAt(n))+'mm')});
         sliderBox.classList.add('camera-inline-slider');panel.append(sliderBox);
-      }else for(const option of category.options){
-        const item=button(option,'generation-choice',()=>{item.blur();choose(option);});item.setAttribute('aria-pressed',String(value===option));choices.append(item);
+        window.DirectorVideoPreviews?.sliderPreview(sliderBox.querySelector('input[type="range"]'),activeKey);
+      }else for(const option of category.options.filter(option=>!(activeKey==='lens'&&option==='Halation vintage'))){
+        const item=button(option,'generation-choice',()=>{item.blur();choose(option);});item.setAttribute('aria-pressed',String(value===option));window.DirectorVideoPreviews?.decorate(item,activeKey,option);choices.append(item);
       }
       const custom=button('+ Custom','generation-choice',()=>{custom.blur();choose('custom:');panel.querySelector('textarea')?.focus();});custom.setAttribute('aria-pressed',String(value.startsWith('custom:')));choices.append(custom);
       panel.append(choices);
@@ -609,14 +610,14 @@
     body.append(tabs,panel);box.append(summary,body);return box;
   }
   function renderDirection(){
-    delete videoDirection.palette;
+    if(videoDirection.lens==='Halation vintage')delete videoDirection.lens;delete videoDirection.camera;delete videoDirection.sensor;delete videoDirection.palette;delete videoDirection.lighting;
     delete videoDirection.era;delete videoDirection.genre;
     const root=$v('preset-options'),categories=config?.video?.prompt_presets||[],stamp=JSON.stringify(categories);
     $v('preset-count').textContent=Object.keys(videoDirection).length?Object.keys(videoDirection).length+' selected':'Optional details';
     if(root.dataset.stamp!==stamp){root.dataset.stamp=stamp;
-      const visible=categories.filter(category=>!['palette','era','genre'].includes(category.key)&&(!cameraKeys.includes(category.key)||category.key==='camera')&&(!directionKeys.includes(category.key)||category.key==='framing'));
+      const visible=categories.filter(category=>!['palette','era','genre','lighting','sensor','camera'].includes(category.key)&&(!cameraKeys.includes(category.key)||category.key==='lens')&&(!directionKeys.includes(category.key)||category.key==='framing'));
       root.replaceChildren(...visible.map(category=>{
-        if(category.key==='camera')return cameraGroup(categories);
+        if(category.key==='lens')return cameraGroup(categories);
         if(category.key==='framing')return cameraGroup(categories,directionKeys,'Direction','framing');
         const iconCategory={id:videoPresetIcons[category.key]||category.key};
         const box=document.createElement('details');box.className='character-option preset-section';box.dataset.category=category.key;

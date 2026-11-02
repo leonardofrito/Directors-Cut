@@ -144,7 +144,7 @@ async def create_study(project_id: str, title: str, mode: str='asset', asset_kin
 @mcp.tool(annotations=WRITE)
 async def update_study(project_id: str, study_id: str, settings: dict) -> dict:
     """Update prompt/settings without generating. Keep @handles in prompts. For Qwen prefer a short prompt plus character_traits/location_traits/prop_traits from get_image_presets; no verbose rewrite needed. Call preview_image_prompt to inspect assembly without generation. Set prompt_enhancer=false for this baseline."""
-    allowed={'title','prompt','ratio','megapixels','duration','video_preset','video_direction','model_files','model_format','reference_ids','upload_reference_ids','prompt_enhancer','enhancer_model','seed','steps','loras','asset_kind','character_traits','location_traits','prop_traits','style','camera','lens_type','sensor','focal_length','f_stop','lighting','light_color','light_notes','film','grade','workflow_id','edit_source','edit_preset'}
+    allowed={'title','prompt','ratio','megapixels','duration','video_preset','video_direction','selflift','model_files','model_format','reference_ids','upload_reference_ids','prompt_enhancer','enhancer_model','seed','steps','loras','asset_kind','character_traits','location_traits','prop_traits','style','camera','lens_type','sensor','focal_length','f_stop','lighting','light_color','light_notes','film','grade','workflow_id','edit_source','edit_preset'}
     if set(settings)-allowed:
         raise ValueError('Unsupported setting: '+', '.join(set(settings)-allowed))
     study=await study_data(project_id,study_id)

@@ -46,4 +46,4 @@ H3 encoder GGUF downloads are experimental: an H3-compatible encoder loader with
 
 [Qwen Comfy files](https://huggingface.co/Comfy-Org/Qwen-Image-2.1) · [H3 Comfy files](https://huggingface.co/Comfy-Org/MiniMax-H3) · [FastH3 Omni](https://huggingface.co/FastVideo/FastH3-Omni-Comfy) · [Qwen GGUF](https://huggingface.co/leejet/Qwen-Image-2.1-GGUF) · [H3 GGUF](https://huggingface.co/leejet/MiniMax-H3-GGUF) · [Qwen3.5](https://huggingface.co/Comfy-Org/Qwen3.5)
 
-Model licenses remain separate from Director’s Cut's MIT license.
+Model licenses remain separate from Director’s Cut's MIT license, including for local inference. Download availability does not establish permission to use a model in your territory or publish its outputs worldwide. See [Model licenses](model-licenses.md) for H3 restrictions and the full agreement.

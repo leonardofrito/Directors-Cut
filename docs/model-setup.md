@@ -10,6 +10,8 @@ For image workflows, a GGUF text encoder uses `CLIPLoaderGGUF`. Video's conditio
 
 ## Video
 
+H3's community license applies to local inference and H3-based variants. It excludes certain territories from the standard grant and imposes additional use/distribution conditions. Review [Model licenses](model-licenses.md) before setup; availability in this picker does not grant authorization.
+
 H3 REF2VA requires a diffusion checkpoint, conditioning encoder, video VAE and audio VAE. The original and optional VSA recipes have their own additional files. Omni uses a separate recipe and does not take the original H3 acceleration LoRA.
 
 ## Downloads

@@ -1,5 +1,9 @@
 # Third-party notices
 
+## Model licenses
+
+The MIT license applies to Director’s Cut's application code, not third-party models. Running models locally does not waive their terms. MiniMax H3 and H3-based derivatives have territorial, commercial and acceptable-use conditions. See [Model licenses](docs/model-licenses.md) and the [complete bundled H3 agreement](docs/MiniMax-H3-LICENSE.txt). Omni/community conversions do not remove the underlying H3 conditions. These notices do not certify deployment or distribution compliance.
+
 Category icons are from [Lucide](https://lucide.dev), bundled locally in
 `web/assets/icons/lucide`. Their ISC license and applicable Feather MIT notices
 are retained in that directory's `LICENSE` file.

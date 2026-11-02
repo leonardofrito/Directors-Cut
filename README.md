@@ -8,17 +8,23 @@ Create characters, props and locations, then bring them together in reference-dr
 
 ## Download
 
-[**Download for Windows — 0.1.0-rc.6**](https://github.com/leonardofrito/Directors-Cut/releases/download/v0.1.0-rc.6/DirectorsCut-0.1.0-rc.6-windows-x64.exe) · [All release files](https://github.com/leonardofrito/Directors-Cut/releases/tag/v0.1.0-rc.6)
+[**Download for Windows — 0.1.0-rc.7**](https://github.com/leonardofrito/Directors-Cut/releases/download/v0.1.0-rc.7/DirectorsCut-0.1.0-rc.7-windows-x64.exe) · [All release files](https://github.com/leonardofrito/Directors-Cut/releases/tag/v0.1.0-rc.7)
 
 | Platform | Available download |
 | --- | --- |
-| Windows x64 | [Download the EXE](https://github.com/leonardofrito/Directors-Cut/releases/download/v0.1.0-rc.6/DirectorsCut-0.1.0-rc.6-windows-x64.exe) — Python included |
-| macOS | [Download the source package](https://github.com/leonardofrito/Directors-Cut/releases/download/v0.1.0-rc.6/DirectorsCut-0.1.0-rc.6-source.zip) — native app not published yet |
-| Linux | [Download the source package](https://github.com/leonardofrito/Directors-Cut/releases/download/v0.1.0-rc.6/DirectorsCut-0.1.0-rc.6-source.zip) — native executable not published yet |
+| Windows x64 | [Download the EXE](https://github.com/leonardofrito/Directors-Cut/releases/download/v0.1.0-rc.7/DirectorsCut-0.1.0-rc.7-windows-x64.exe) — Python included |
+| macOS | [Download the source package](https://github.com/leonardofrito/Directors-Cut/releases/download/v0.1.0-rc.7/DirectorsCut-0.1.0-rc.7-source.zip) — native app not published yet |
+| Linux | [Download the source package](https://github.com/leonardofrito/Directors-Cut/releases/download/v0.1.0-rc.7/DirectorsCut-0.1.0-rc.7-source.zip) — native executable not published yet |
 
-[Quick Start](packaging/QUICKSTART.md) · [Release notes](https://github.com/leonardofrito/Directors-Cut/releases/tag/v0.1.0-rc.6)
+[Quick Start](packaging/QUICKSTART.md) · [Release notes](https://github.com/leonardofrito/Directors-Cut/releases/tag/v0.1.0-rc.7)
 
 A compatible ComfyUI installation and model files are required separately. The current Windows build is an unsigned release candidate.
+
+## Bank of Ideas demo
+
+Open **Projects → Bank of Ideas** to load the bundled example: 14 approved shots and 12 image references in a separate editable project. The optional tutorial guides you through creating a character and using it in a bank shot. Model weights are separate; every generation requires your click.
+
+Use **Library → Shots → Timeline** to arrange and trim clips on V1/V2 and A1/A2, preview the edit, and export MP4 or a DaVinci Resolve timeline. [Sequence and example guide](docs/sequence-and-examples.md).
 
 ## What you can make
 
@@ -84,4 +90,4 @@ Generation follows **Director’s Cut → Comfy SDK → Comfy API proxy → Comf
 
 ## License
 
-Director’s Cut is [MIT licensed](LICENSE). Dependency and bundled reference notices are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Model weights are not included and retain their publishers' terms.
+Director’s Cut's **application code is MIT licensed**. Model weights are not included and retain separate terms, including for local use. **MiniMax H3 has territorial and use restrictions**, also applicable to H3-based variants; the app's MIT license does not grant worldwide model or output rights. Read [Model licenses](docs/model-licenses.md) before using or distributing H3-based workflows. Dependency and reference notices are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

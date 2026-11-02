@@ -27,7 +27,7 @@ from . import video
 from .model_install import import_video_file
 from . import model_downloads, engine_config, engine_connection
 from . import reference_uploads, motion_reference, audio_reference, project_cover, edit_presets, rtx_upscale
-from . import app_control, node_setup
+from . import app_control, node_setup, sequence, examples, timeline
 from .paths import DATA_ROOT
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -39,6 +39,11 @@ def allowed_host(authority):
     try:
         host = urlsplit('//'+authority).hostname
         if host in ('localhost', '127.0.0.1', '::1'):
+            return True
+        # Explicit private TCP proxy: keep the listener on loopback while
+        # admitting only the configured Tailscale IPv4 Host header.
+        proxy_ip = os.environ.get('OPENFRAME_TAILSCALE_PROXY_IP', '')
+        if host == proxy_ip and ipaddress.ip_address(host) in ipaddress.ip_network('100.64.0.0/10'):
             return True
         if os.environ.get('OPENFRAME_HOST', '127.0.0.1') in ('127.0.0.1', 'localhost', '::1'):
             return False
@@ -76,6 +81,7 @@ class Studio:
         self.connection = engine_connection.Connection()
         self.connection_changing = False
         self.store = Store()
+        self.sequence_exports = sequence.Exporter(self.store)
         self.queue = asyncio.Queue()
         self.progress = {}
         self.provider = None
@@ -195,6 +201,7 @@ class Studio:
         yield
         worker.cancel()
         await asyncio.gather(worker, return_exceptions=True)
+        await self.sequence_exports.close()
         await self.node_setup.close()
         await self.provider.close()
         await self.model_downloads.close()
@@ -536,6 +543,8 @@ class Studio:
         if any(s.get('mode') != 'video' for s in shots):
             raise ValueError('Select video shots only.')
         if data.get('action') == 'delete':
+            if any(c.get('shot_id') in ids for c in (p.get('editor_timeline') or {}).get('clips', [])):
+                raise ValueError('Remove these shots from the Timeline before deleting them.')
             if any(d['status'] in ACTIVE for shot in shots for d in shot.get('drafts', [])):
                 raise ValueError('Wait for selected shots to finish generating before deleting them.')
             p['shots'] = [shot for shot in p['shots'] if shot['id'] not in ids]
@@ -581,6 +590,8 @@ class Studio:
         p = self.store.load(request.match_info['project'])
         s = self.store.shot(p, request.match_info['shot'])
         if request.method == 'DELETE':
+            if any(c.get('shot_id') == s['id'] for c in (p.get('editor_timeline') or {}).get('clips', [])):
+                raise ValueError('Remove this shot from the Timeline before deleting it.')
             if any(d['status'] in ACTIVE for d in s.get('drafts', [])):
                 raise ValueError('Wait for this item to finish generating before deleting it.')
             if s.get('asset_id') and any(a['id'] == s['asset_id'] for a in p.get('assets', [])):
@@ -812,7 +823,7 @@ class Studio:
 
     async def file(self, request):
         path = self.store.file(request.match_info['project'], request.match_info['file'])
-        if path.suffix not in ('.png', '.jpg', '.json', '.zip', '.mp4'):
+        if path.suffix not in ('.png', '.jpg', '.json', '.zip', '.mp4', '.otioz'):
             raise web.HTTPForbidden()
         headers = {'Cache-Control': 'no-cache'}
         if request.query.get('download') == '1':
@@ -829,7 +840,7 @@ def create_app(shutdown_event=None):
     app.router.add_get('/api/app', app_control.info)
     app.router.add_post('/api/app/quit', app_control.quit_app)
     app.router.add_post('/api/app/open-data', app_control.open_data)
-    app.router.add_get('/api/app/legal/{document:app|third-party|dependencies}',app_control.license_text)
+    app.router.add_get('/api/app/legal/{document:app|third-party|dependencies|model-terms|h3}',app_control.license_text)
     app.router.add_get('/api/models/catalog', model_downloads.catalog)
     app.router.add_get('/api/models/downloads', model_downloads.status)
     app.router.add_post('/api/models/downloads', model_downloads.start)
@@ -844,6 +855,13 @@ def create_app(shutdown_event=None):
     app.router.add_put('/api/engine/folders', engine_connection.save_folders)
     app.router.add_put('/api/engine', engine_connection.save)
     app.router.add_post('/api/video/import/{kind}', import_video_file)
+    app.router.add_get('/api/examples', examples.list_examples)
+    app.router.add_post('/api/examples/{example}/open', examples.open_example)
+    app.router.add_get('/api/projects/{project}/timeline', timeline.get)
+    app.router.add_put('/api/projects/{project}/timeline', timeline.save)
+    app.router.add_put('/api/projects/{project}/sequence', sequence.save_order)
+    app.router.add_post('/api/projects/{project}/sequence/exports', sequence.start_export)
+    app.router.add_get('/api/projects/{project}/sequence/exports/{job}', sequence.export_status)
     app.router.add_get('/api/queue', studio.generation_queue)
     app.router.add_get('/api/previews', studio.preview_status)
     app.router.add_post('/api/previews', studio.preview_status)
@@ -874,7 +892,7 @@ def create_app(shutdown_event=None):
     async def static(request):
         return web.FileResponse(ROOT / 'web' / request.match_info.get('asset', 'index.html'))
     app.router.add_get('/', static)
-    app.router.add_get('/{asset:app.js|player.js|video.js|workspace-nav.js|dropdowns.js|style.css|icons.js|library.js|polish.js|polish.css|motion.js|motion.css|model-downloads.js|engine-settings.js|node-setup.js}', static)
+    app.router.add_get('/{asset:app.js|player.js|video.js|video-previews.js|timeline.js|tutorial.js|workspace-nav.js|dropdowns.js|style.css|icons.js|library.js|polish.js|polish.css|motion.js|motion.css|model-downloads.js|engine-settings.js|node-setup.js}', static)
     app.router.add_static('/assets', ROOT / 'web/assets')
     return app
 

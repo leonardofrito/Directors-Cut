@@ -6,7 +6,7 @@ from openframe.version import VERSION
 OUTPUT=ROOT/'release'/VERSION
 STAGE=ROOT/'.runtime/package-stage'
 
-PUBLIC_DOCS=['comfy-connection.md','model-downloads.md','model-setup.md','mcp.md','video-workspace.md','image-direction.md','asset-library.md','editing-prompts.md','competition-rules.md','release-readiness.md','windows-signing.md','publication-audit.md']
+PUBLIC_DOCS=['comfy-connection.md','model-downloads.md','model-setup.md','model-licenses.md','MiniMax-H3-LICENSE.txt','mcp.md','video-workspace.md','image-direction.md','asset-library.md','editing-prompts.md','competition-rules.md','release-readiness.md','windows-signing.md','publication-audit.md','sequence-and-examples.md','library-batch-actions.md']
 
 def sign_windows(executable,required=False,verify_only=False):
     thumbprint=os.environ.get('DIRECTORSCUT_SIGNING_THUMBPRINT','').strip()
@@ -55,6 +55,10 @@ def stage():
         if path.name.endswith('-prompt.txt'):continue
         if relative.as_posix() in ('assets/branding/directors-cut-profile-glass.png','assets/branding/directors-cut-icon-only.png','assets/branding/Logo Pre - Realista.png'):continue
         target=STAGE/'web'/relative;target.parent.mkdir(parents=True,exist_ok=True);shutil.copy2(path,target);selected.append(target)
+    # Only curated example resources, never the local projects directory.
+    for path in (ROOT/'examples').rglob('*'):
+        if path.is_file() and path.suffix in ('.json','.zip'):
+            target=STAGE/'examples'/path.relative_to(ROOT/'examples');target.parent.mkdir(parents=True,exist_ok=True);shutil.copy2(path,target)
     # API graphs only: no original UI workflow archives, private media or machine state.
     catalogs=json.loads((ROOT/'workflows/catalog.json').read_text(encoding='utf-8'))
     for item in catalogs:
@@ -69,6 +73,8 @@ def stage():
     (STAGE/'openframe').mkdir(exist_ok=True);shutil.copy2(ROOT/'openframe/model_download_catalog.json',STAGE/'openframe/model_download_catalog.json')
     shutil.copy2(ROOT/'openframe/node_catalog.json',STAGE/'openframe/node_catalog.json')
     # Generate platform icons from the existing approved PNG; no new image generation.
+    for name in ('model-licenses.md','MiniMax-H3-LICENSE.txt'):
+        target=STAGE/'docs'/name;target.parent.mkdir(parents=True,exist_ok=True);shutil.copy2(ROOT/'docs'/name,target)
     from PIL import Image
     with Image.open(ROOT/'web/assets/branding/directors-cut-icon-v1.png') as image:
         image.convert('RGBA').save(STAGE/'app.ico',sizes=[(16,16),(32,32),(48,48),(64,64),(128,128),(256,256)])
@@ -89,7 +95,7 @@ def source_archive():
         for name in ['app_entry.py','run.py',"Start Director's Cut.bat","Start Director's Cut MCP.bat",'directors_cut_mcp.py','requirements.txt','requirements-mcp.txt','requirements-build.txt','setup.bat','setup.sh','start.sh','README.md','LICENSE','THIRD_PARTY_NOTICES.md']:
             if name not in ('LICENSE','THIRD_PARTY_NOTICES.md'):archive.write(ROOT/name,name)
         for name in PUBLIC_DOCS:
-            archive.write(ROOT/'docs'/name,'docs/'+name)
+            if not (STAGE/'docs'/name).is_file():archive.write(ROOT/'docs'/name,'docs/'+name)
         for name in ['directors-cut-banner.png','directors-cut-assets.png','directors-cut-video.png']:
             archive.write(ROOT/'docs/images'/name,'docs/images/'+name)
         for name in ['test_core.py','test_engine_connection.py','test_model_downloads.py','test_selflift_setup.py','test_release.py','test_windows_signing.py','test_library_batches.py']:
@@ -116,6 +122,7 @@ def windows_archive():
         archive.write(ROOT/'packaging/QUICKSTART.md','START-HERE.md')
         archive.write(ROOT/'packaging/RELEASE-NOTES.md','RELEASE-NOTES.md')
         for name in ['LICENSE','THIRD_PARTY_NOTICES.md']:archive.write(ROOT/name,name)
+        for name in ('model-licenses.md','MiniMax-H3-LICENSE.txt'):archive.write(ROOT/'docs'/name,'docs/'+name)
         archive.write(STAGE/'DEPENDENCY_NOTICES.txt','DEPENDENCY_NOTICES.txt')
 
 def main():

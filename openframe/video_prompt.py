@@ -5,6 +5,7 @@ from .catalog import names
 from .presets import FRAMING, LIGHTING, GRADE, PALETTES, SENSORS, F_STOPS
 from .enhancer import THINKING_PATTERN, UNUSABLE_CAPTION
 from .prompt_guides import runtime_guidance
+from . import video_optics
 
 GENRES = {name: text for name,text in [
     ('Epic','Epic scale, heroic visual storytelling and grand compositions.'),('Drama','Intimate dramatic staging with emotionally readable performances.'),
@@ -24,7 +25,7 @@ LENSES = {'Clean':'Clean neutral optics, restrained distortion and flare.', 'Sha
     'Anamorphic':'Anamorphic optics, oval bokeh and horizontal highlight flares.',
     'Vintage anamorphic':'Vintage anamorphic optics with softer edges, oval bokeh and organic flares.',
     'Warm vintage':'Warm vintage lens rendering with gentle contrast and soft highlight bloom.',
-    'Halation vintage':'Vintage optical character with subtle halation around bright highlights.'}
+    'Halation vintage':video_optics.LENSES['Halation vintage']}
 MOVES = {
     'Arc left':'Camera arcs left around the subject, maintaining subject distance and framing.',
     'Arc right':'Camera arcs right around the subject, maintaining subject distance and framing.',
@@ -57,6 +58,9 @@ LIGHTS = {**LIGHTING, 'Practical':'Visible practical lamps motivate the scene li
     'Overhead':'Overhead lighting with defined downward facial and environmental shadows.',
     'Soft cross':'Soft crossed key and fill lighting with gentle dimensional separation.',
     'Contre-jour':'Strong backlighting toward the camera, with controlled silhouettes and edge separation.'}
+VIDEO_FRAMING = {name: FRAMING[name] for name in (
+    'Extreme wide','Wide','Full body','Cowboy shot','Medium','Close-up','Extreme close-up',
+    'Over-the-shoulder','POV','Low angle','High angle','Bird’s-eye','Dutch angle','Symmetrical')}
 CATEGORIES = [
     ('genre','Genre',GENRES),('era','Film era',{str(y):f'Visual production design and cinematic treatment evocative of the {y}s; preserve explicitly specified wardrobe and setting.' for y in range(1960,2030,10)}),
     ('tempo','Pacing / cuts',TEMPO),('camera','Camera',CAMERA),('sensor','Sensor',SENSORS),('lens','Lens',LENSES),
@@ -66,7 +70,7 @@ CATEGORIES = [
 
 
 def catalog():
-    return [dict(key=key,label=label,options=list(options),palettes=PALETTES if key=='palette' else {}) for key,label,options in CATEGORIES]
+    return [dict(key=key,label=label,options=[name for name in (VIDEO_FRAMING if key=='framing' else options) if not (key=='lens' and name=='Halation vintage')],palettes=PALETTES if key=='palette' else {}) for key,label,options in CATEGORIES if key not in ('lighting','sensor','camera')]
 
 
 def validate(value):
@@ -76,16 +80,39 @@ def validate(value):
         selected=value.get(key,'')
         if not isinstance(selected,str) or len(selected)>1007 or selected and selected not in options and not selected.startswith('custom:'):
             raise ValueError('Unknown video '+label.lower()+' preset.')
-    return {key:value[key] for key,_,_ in CATEGORIES if value.get(key)}
+    return {key:value[key] for key,_,_ in CATEGORIES if key not in ('lighting','sensor','camera') and value.get(key) and not (key=='lens' and value[key]=='Halation vintage')}
 
 
 def direction(value):
     lines=[]
     for key,label,options in CATEGORIES:
+        if key in ('lighting','sensor','camera'):
+            continue
         selected=value.get(key,'')
+        if key=='lens' and selected=='Halation vintage':continue
         text=selected[7:].strip() if selected.startswith('custom:') else options.get(selected,'')
+        if selected and not selected.startswith('custom:'):
+            if key=='camera':text=video_optics.CAMERA.get(selected,text)
+            elif key=='lens':text=video_optics.LENSES.get(selected,text)
+            elif key=='aperture':text=video_optics.aperture(selected)
+            elif key=='focal_length':text=video_optics.focal(selected)
         if text:lines.append(label+': '+text if selected.startswith('custom:') else text)
     return '\n'.join(lines)
+
+
+def apply_direction(prompt, value):
+    """Keep optical descriptions in the visual scene, not after its audio sections."""
+    optics={key:selected for key,selected in value.items() if key in ('lens','aperture','focal_length') and not selected.startswith('custom:') and not (key=='lens' and selected=='Halation vintage')}
+    if optics:
+        text='Photographic treatment: '+direction(optics)
+        section=re.search(r'(?im)^detailed_description\s*:\s*\n',prompt)
+        if section:
+            prompt=prompt[:section.end()]+text+'\n\n'+prompt[section.end():]
+        else:
+            prompt=text+'\n\n'+prompt
+    remaining=direction({key:selected for key,selected in value.items() if key not in optics})
+    if remaining:prompt+='\n\nVideo direction:\n'+remaining
+    return prompt
 
 
 def availability(nodes):

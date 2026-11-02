@@ -1,3 +1,12 @@
+# 0.1.0-rc.7
+
+- Bundled Bank of Ideas example with 14 approved shots and 12 references, plus an optional character-to-video tutorial. Opening the demo preserves your previous edits; no generation starts automatically.
+- Library shot ordering, sequence playback, and a non-destructive V1/V2/A1/A2 timeline with trims, split, independent audio offsets, undo/redo and autosave. Export MP4 or an OTIOZ media package for Resolve 18.5+.
+- Silent looping camera-movement, framing, pacing and optical previews. Framing, Movement, Pacing and Lens display two cards per row. Aperture and focal length retain sliders with full-width looping previews above them.
+- Updated optical examples from the V4 comparisons. Removed Video lighting, Camera Type, Sensor and Halation Vintage options; historical takes are preserved.
+- Clear separation between MIT application code and upstream model terms, including local H3 territorial restrictions. Bundled upstream H3 license and model-terms links. These notices do not certify legal compliance or grant restricted-territory authorization.
+- Windows package remains unsigned. Native macOS/Linux packages are not included. No new inference was run for package verification.
+
 # 0.1.0-rc.6
 
 - Select multiple assets or shots in the Library to download or delete them together. Deletion confirms once and refuses active generations; deleted assets and their studies retain the existing archive recovery behavior.

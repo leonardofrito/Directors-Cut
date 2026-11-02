@@ -170,9 +170,7 @@ def build_graph(saved, prefix, nodes=None):
     if len(refs) > 9:
         raise ValueError('H3 accepts up to 9 image references.')
     prompt = reference_prompt(saved['prompt'], refs, saved)
-    cues = video_prompt.direction(video_prompt.validate(saved.get('video_direction', {})))
-    if cues:
-        prompt += '\n\nVideo direction:\n' + cues
+    prompt = video_prompt.apply_direction(prompt, video_prompt.validate(saved.get('video_direction', {})))
     encoder = graph['136']['inputs']
     for key in list(encoder):
         if key.startswith(('ref_images.', 'ref_videos.', 'ref_video_audios.', 'ref_audios.')):

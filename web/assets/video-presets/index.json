@@ -1,0 +1,74 @@
+{
+  "poster": "/assets/video-presets/stage.jpg",
+  "movement": {
+    "Arc left": "/assets/video-presets/arc-left.webm",
+    "Arc right": "/assets/video-presets/arc-right.webm",
+    "Orbit": "/assets/video-presets/orbit.webm",
+    "Slider left": "/assets/video-presets/slider-left.webm",
+    "Slider right": "/assets/video-presets/slider-right.webm",
+    "Dolly in": "/assets/video-presets/dolly-in.webm",
+    "Dolly out": "/assets/video-presets/dolly-out.webm",
+    "Dolly zoom": "/assets/video-presets/dolly-zoom.webm",
+    "Crash zoom in": "/assets/video-presets/crash-zoom-in.webm",
+    "Crash zoom out": "/assets/video-presets/crash-zoom-out.webm",
+    "Helicopter": "/assets/video-presets/helicopter.webm",
+    "Robot arm": "/assets/video-presets/robot-arm.webm",
+    "Slow push": "/assets/video-presets/slow-push.webm",
+    "Crane up": "/assets/video-presets/crane-up.webm",
+    "Crane down": "/assets/video-presets/crane-down.webm",
+    "POV": "/assets/video-presets/pov.webm",
+    "Handheld": "/assets/video-presets/handheld.webm",
+    "Rack focus": "/assets/video-presets/rack-focus.webm",
+    "Tilt down": "/assets/video-presets/tilt-down.webm",
+    "Tilt up": "/assets/video-presets/tilt-up.webm",
+    "Pan left": "/assets/video-presets/pan-left.webm",
+    "Pan right": "/assets/video-presets/pan-right.webm",
+    "Tracking": "/assets/video-presets/tracking.webm",
+    "Whip pan": "/assets/video-presets/whip-pan.webm",
+    "Snorricam": "/assets/video-presets/snorricam.webm",
+    "Static": "/assets/video-presets/static.webm"
+  },
+  "framing": {
+    "Extreme wide": "/assets/video-presets/framing-extreme-wide.webm",
+    "Wide": "/assets/video-presets/framing-wide.webm",
+    "Full body": "/assets/video-presets/framing-full-body.webm",
+    "Cowboy shot": "/assets/video-presets/framing-cowboy-shot.webm",
+    "Medium": "/assets/video-presets/framing-medium.webm",
+    "Close-up": "/assets/video-presets/framing-close-up.webm",
+    "Extreme close-up": "/assets/video-presets/framing-extreme-close-up.webm",
+    "Over-the-shoulder": "/assets/video-presets/framing-over-the-shoulder.webm",
+    "POV": "/assets/video-presets/framing-pov.webm",
+    "Low angle": "/assets/video-presets/framing-low-angle.webm",
+    "High angle": "/assets/video-presets/framing-high-angle.webm",
+    "Bird’s-eye": "/assets/video-presets/framing-bird-s-eye.webm",
+    "Dutch angle": "/assets/video-presets/framing-dutch-angle.webm",
+    "Two-shot": "/assets/video-presets/framing-two-shot.webm",
+    "Symmetrical": "/assets/video-presets/framing-symmetrical.webm"
+  },
+  "tempo": {
+    "Chaotic": "/assets/video-presets/tempo-chaotic.webm",
+    "Many cuts": "/assets/video-presets/tempo-many-cuts.webm",
+    "Dynamic": "/assets/video-presets/tempo-dynamic.webm",
+    "Calm": "/assets/video-presets/tempo-calm.webm",
+    "Single shot": "/assets/video-presets/tempo-single-shot.webm"
+  },
+  "lens": {
+    "Clean": "/assets/video-presets/optics-v4-lens-clean.webm",
+    "Sharp": "/assets/video-presets/optics-v4-lens-sharp.webm",
+    "Anamorphic": "/assets/video-presets/optics-v4-lens-anamorphic.webm",
+    "Vintage anamorphic": "/assets/video-presets/optics-v4-lens-vintage-anamorphic.webm",
+    "Warm vintage": "/assets/video-presets/optics-v4-lens-warm-vintage.webm"
+  },
+  "aperture": {
+    "f/1.4": "/assets/video-presets/optics-v4-aperture-f-1-4.webm",
+    "f/4": "/assets/video-presets/optics-v4-aperture-f-4.webm",
+    "f/11": "/assets/video-presets/optics-v4-aperture-f-11.webm"
+  },
+  "focal_length": {
+    "12mm": "/assets/video-presets/optics-v4-focal-length-12mm.webm",
+    "35mm": "/assets/video-presets/optics-v4-focal-length-35mm.webm",
+    "50mm": "/assets/video-presets/optics-v4-focal-length-50mm.webm",
+    "85mm": "/assets/video-presets/optics-v4-focal-length-85mm.webm",
+    "150mm": "/assets/video-presets/optics-v4-focal-length-150mm.webm"
+  }
+}

@@ -58,7 +58,7 @@ The intended category is **Open Weights Only**. Preserve a fully local entry pat
   Engine settings now offers explicit per-file downloads (BF16/INT8 and verified optional quantizations), with source labels, resume, expected-size/SHA-256 checks and no overwrite. See docs/model-downloads.md. Selection alone never starts a transfer; unavailable/incompatible releases are not invented or substituted.
 - Model licenses remain separate from the app license. Qwen-Image 2.1 is labelled
   qwen-research; H3 uses its community license. This audit does not certify every
-  model, LoRA, asset or future commercial use.
+  model, LoRA, asset or future commercial use. H3's territorial restrictions apply to local weights and derivatives; open weights do not mean unrestricted worldwide use. See [Model licenses](model-licenses.md). Competition eligibility is not a substitute for model authorization, downstream terms or safeguards.
 
 Model references:
 - https://huggingface.co/Comfy-Org/Qwen-Image-2.1

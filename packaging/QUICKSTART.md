@@ -6,17 +6,19 @@ Create assets and reference-driven video with your own ComfyUI.
 
 | Platform | Download | Setup |
 | --- | --- | --- |
-| Windows x64 | [Windows EXE](https://github.com/leonardofrito/Directors-Cut/releases/download/v0.1.0-rc.6/DirectorsCut-0.1.0-rc.6-windows-x64.exe) | Open the file; Python is included. |
-| macOS | [Source package](https://github.com/leonardofrito/Directors-Cut/releases/download/v0.1.0-rc.6/DirectorsCut-0.1.0-rc.6-source.zip) | Extract, then follow the source instructions below. |
-| Linux | [Source package](https://github.com/leonardofrito/Directors-Cut/releases/download/v0.1.0-rc.6/DirectorsCut-0.1.0-rc.6-source.zip) | Extract, then follow the source instructions below. |
+| Windows x64 | [Windows EXE](https://github.com/leonardofrito/Directors-Cut/releases/download/v0.1.0-rc.7/DirectorsCut-0.1.0-rc.7-windows-x64.exe) | Open the file; Python is included. |
+| macOS | [Source package](https://github.com/leonardofrito/Directors-Cut/releases/download/v0.1.0-rc.7/DirectorsCut-0.1.0-rc.7-source.zip) | Extract, then follow the source instructions below. |
+| Linux | [Source package](https://github.com/leonardofrito/Directors-Cut/releases/download/v0.1.0-rc.7/DirectorsCut-0.1.0-rc.7-source.zip) | Extract, then follow the source instructions below. |
 
-[All release files and notes](https://github.com/leonardofrito/Directors-Cut/releases/tag/v0.1.0-rc.6)
+[All release files and notes](https://github.com/leonardofrito/Directors-Cut/releases/tag/v0.1.0-rc.7)
 
 Native macOS and Linux packages are not published yet. Their links above download source code, not an EXE or a ready-made app. The Windows build is currently unsigned.
 
 Windows may show an unknown-publisher or SmartScreen warning because this release is not digitally signed yet.
 
 ## Before you start
+
+The app's code is MIT licensed; models have separate terms. MiniMax H3's restrictions also apply to local use and H3-based variants. Read [Model licenses](https://github.com/leonardofrito/Directors-Cut/blob/main/docs/model-licenses.md), especially before deploying in the EU, UK, South Korea or US.
 
 Install and start a compatible ComfyUI. Its required workflow nodes and model files are separate from Director’s Cut. Model downloads are available in the app; missing supported custom nodes can be installed from Connection → Workflow nodes. Restart ComfyUI after installation.
 

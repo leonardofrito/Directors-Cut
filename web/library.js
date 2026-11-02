@@ -1,8 +1,51 @@
 /* One place to browse project assets and video shots. */
 (() => {
   let tab='assets',projects=[],shotStamp='',playback=[],playIndex=0;
+  let ordering=false,orderBusy=false,draggedShot=null,exportJob=null;
   let selecting=false,selectionProject=null,batchBusy=false;const selectedShots=new Set();
   const iconButton=(name,label,action)=>{const b=button('','icon-button',action);b.innerHTML=DirectorIcons[name];b.title=label;b.setAttribute('aria-label',label);return b;};
+  const sequenceTools=document.createElement('div');sequenceTools.className='library-sequence-tools';sequenceTools.hidden=true;
+  const orderButton=button('Reorder','subtle',()=>{ordering=!ordering;selecting=false;selectedShots.clear();if(ordering)$('library-search').value='';renderShots(true);});orderButton.setAttribute('aria-pressed','false');
+  const playButton=button('','subtle',()=>playShots());playButton.innerHTML=DirectorIcons.play+'<span>Play sequence</span>';
+  const exportMenu=document.createElement('details');exportMenu.className='sequence-export-menu';
+  const exportSummary=document.createElement('summary');exportSummary.textContent='Export';
+  const exportChoices=document.createElement('div');exportChoices.className='sequence-export-choices';
+  for(const [format,label] of [['mp4','MP4'],['resolve','DaVinci Resolve']])exportChoices.append(button(label,'subtle',()=>safe(()=>exportSequence(format))));
+  exportMenu.append(exportSummary,exportChoices);sequenceTools.append(button('Timeline','subtle',()=>safe(()=>DirectorTimeline.open())),orderButton,playButton,exportMenu);$('library-select').after(sequenceTools);
+  const exportStatus=document.createElement('div');exportStatus.className='sequence-export-status';exportStatus.hidden=true;exportStatus.setAttribute('role','status');$('library-batch').after(exportStatus);
+  function syncSequence(){
+    sequenceTools.hidden=tab!=='shots';exportStatus.hidden=tab!=='shots'||!exportStatus.childNodes.length;
+    orderButton.textContent=ordering?'Done ordering':'Reorder';orderButton.setAttribute('aria-pressed',String(ordering));orderButton.disabled=orderBusy||batchBusy;
+    playButton.disabled=!videoShots().some(latest);exportChoices.querySelectorAll('button').forEach(b=>b.disabled=Boolean(exportJob)||!videoShots().some(latest));
+  }
+  async function saveShotOrder(ids){
+    if(orderBusy)return;orderBusy=true;syncSequence();
+    try{await DirectorVideo.save();if(!DirectorVideo.active)await saveNotes(false);project=await api(`/projects/${project.id}/sequence`,'PUT',{ids});window.render();}
+    finally{orderBusy=false;renderLibrary(true);}
+  }
+  function moveShot(id,target){
+    if(orderBusy||$('library-search').value.trim())return;
+    const ids=videoShots().map(s=>s.id),from=ids.indexOf(id);if(from<0)return;
+    ids.splice(from,1);ids.splice(Math.max(0,Math.min(ids.length,target)),0,id);return saveShotOrder(ids);
+  }
+  async function exportSequence(format){
+    if(exportJob)return;await DirectorVideo.save();exportMenu.open=false;
+    const pid=project.id;exportJob=await api(`/projects/${pid}/sequence/exports`,'POST',{format});syncSequence();
+    async function poll(){
+      try{
+        const job=await api(`/projects/${pid}/sequence/exports/${exportJob.id}`);
+        if(job.status==='succeeded'){
+          const link=document.createElement('a');link.href=fileURL(job.download,pid);link.download=job.name;link.className='button';link.textContent='Download '+(job.format==='mp4'?'MP4':'DaVinci timeline');
+          exportStatus.replaceChildren(link);exportStatus.hidden=tab!=='shots';exportJob=null;syncSequence();link.click();return;
+        }
+        if(job.status==='failed'||job.status==='cancelled')throw new Error(job.error||'Sequence export cancelled.');
+        exportStatus.textContent=`Exporting ${job.completed} / ${job.total} shots…`;exportStatus.hidden=tab!=='shots';setTimeout(poll,1200);
+      }catch(error){exportJob=null;exportStatus.textContent=error.message;syncSequence();toast(error.message);}
+    }
+    poll();
+  }
+  document.addEventListener('click',event=>{if(!exportMenu.contains(event.target))exportMenu.open=false;});
+  document.addEventListener('keydown',event=>{if(event.key==='Escape')exportMenu.open=false;});
   function syncCounts(){
     $('library-assets-total').textContent=project?.assets?.length||0;
     $('library-shots-total').textContent=project?.shots.filter(s=>s.mode==='video').length||0;
@@ -19,7 +62,7 @@
     for(const id of ['library-source','library-kind'])$(id).closest('.library-filter').hidden=tab!=='assets';
     $('library-search').placeholder=tab==='shots'?'Search shots…':'Search assets…';
     if(draw){$('library-search').value='';renderLibrary(true);}
-    syncCounts();
+    syncCounts();syncSequence();
   }
   const videoShots=()=>project?.shots.filter(s=>s.mode==='video')||[];
   const latest=shot=>shot.drafts.find(d=>d.id===shot.approved?.draft_id&&d.status==='succeeded'&&d.file)||shot.drafts.filter(d=>d.status==='succeeded'&&d.file).at(-1);
@@ -35,8 +78,8 @@
   const visibleItems=()=>tab==='shots'?visibleShots():assetItems().filter(a=>($('library-kind').value==='all'||a.kind===$('library-kind').value)&&(a.name+' '+a.handle+' '+a.description).toLowerCase().includes($('library-search').value.toLowerCase()));
   function prepareSelection(){
     const scope=(project?.id||'')+':'+tab+':'+(tab==='assets'?librarySource:'');
-    if(selectionProject!==scope){selectionProject=scope;selectedShots.clear();selecting=false;}
-    for(const id of selectedShots)if(!items().some(s=>s.id===id))selectedShots.delete(id);selectionControls();
+    if(selectionProject!==scope){selectionProject=scope;selectedShots.clear();selecting=false;ordering=false;}
+    for(const id of selectedShots)if(!items().some(s=>s.id===id))selectedShots.delete(id);selectionControls();syncSequence();
   }
   function addAssetSelector(card,asset){
     card.classList.toggle('shot-selected',selectedShots.has(asset.id));
@@ -109,18 +152,26 @@
     if($('asset-library').hidden)return;
     prepareSelection();
     const term=$('library-search').value.trim().toLowerCase(),shots=visibleShots();
-    const stamp=JSON.stringify([project?.id,term,selecting,[...selectedShots],shots.map(s=>[s.id,s.title,s.approved?.draft_id,s.drafts.map(d=>[d.id,d.status,d.file,d.audio_applied_at])])]);
+    const stamp=JSON.stringify([project?.id,term,selecting,ordering,orderBusy,[...selectedShots],shots.map(s=>[s.id,s.title,s.approved?.draft_id,s.drafts.map(d=>[d.id,d.status,d.file,d.audio_applied_at])])]);
     if(!force&&stamp===shotStamp)return;shotStamp=stamp;
-
+    
     $('library-items').replaceChildren(...shots.map(shot=>{
       const take=latest(shot),card=document.createElement('article');card.className='asset-card shot-card'+(take&&shot.approved?.draft_id===take.id?' approved-shot':'');
       card.classList.toggle('shot-selected',selectedShots.has(shot.id));
-      const select=iconButton('select','Select '+shot.title,()=>toggleShot(shot.id));select.classList.add('shot-card-select');select.setAttribute('aria-pressed',String(selectedShots.has(shot.id)));select.disabled=batchBusy;card.append(select);
+      const select=iconButton('select','Select '+shot.title,()=>toggleShot(shot.id));select.classList.add('shot-card-select');select.setAttribute('aria-pressed',String(selectedShots.has(shot.id)));select.disabled=batchBusy;select.hidden=ordering;card.append(select);
       const cover=button('','asset-cover',()=>selecting?toggleShot(shot.id):safe(()=>openShot(shot.id)));cover.title='Open shot';cover.setAttribute('aria-label','Open '+shot.title);
       if(take){
         const video=document.createElement('video');video.muted=true;video.playsInline=true;video.preload='none';video.dataset.lazyVideo=fileURL(take.file)+'#t=0.1';cover.append(video);window.DirectorMotion?.observeVideo(video);
-
+        
       }else{const empty=document.createElement('span');empty.className='asset-cover-empty';empty.textContent=shot.drafts.some(active)?'Generating…':'No takes yet';cover.append(empty);}
+      if(ordering){
+        const index=videoShots().findIndex(s=>s.id===shot.id),badge=document.createElement('span');badge.className='shot-order-badge';badge.textContent=String(index+1).padStart(2,'0');cover.append(badge);
+        card.draggable=!orderBusy&&!term;card.classList.add('shot-reorderable');card.ondragstart=event=>{if(!card.draggable){event.preventDefault();return;}draggedShot=shot.id;event.dataTransfer.setData('application/x-directors-cut-shot',shot.id);event.dataTransfer.effectAllowed='move';};
+        card.ondragover=event=>{if(draggedShot&&draggedShot!==shot.id&&!orderBusy){event.preventDefault();event.dataTransfer.dropEffect='move';card.classList.add('shot-drop-target');}};
+        card.ondragleave=()=>card.classList.remove('shot-drop-target');
+        card.ondrop=event=>{event.preventDefault();card.classList.remove('shot-drop-target');if(draggedShot&&draggedShot!==shot.id)safe(()=>moveShot(draggedShot,index));draggedShot=null;};
+        card.ondragend=()=>{draggedShot=null;document.querySelectorAll('.shot-drop-target').forEach(el=>el.classList.remove('shot-drop-target'));};
+      }
       const count=document.createElement('span');count.className='asset-cover-takes';count.textContent=shot.drafts.filter(d=>d.status==='succeeded').length+' takes'+(take&&shot.approved?.draft_id===take.id?' · Approved':'');cover.append(count);
       const identity=document.createElement('div');identity.className='asset-identity';
       const title=document.createElement('strong');title.className='asset-handle';title.textContent=shot.title;
@@ -140,12 +191,15 @@
         download.title='Download approved take';download.setAttribute('aria-label','Download approved take: '+shot.title);
         download.innerHTML=DirectorIcons.download+'<span>Download</span>';actions.append(download);
       }
-      actions.append(iconButton('trash','Delete '+shot.title,()=>safe(()=>deleteShot(shot))));card.append(cover,identity,actions);return card;
+      actions.append(iconButton('trash','Delete '+shot.title,()=>safe(()=>deleteShot(shot))));
+      if(ordering){const index=videoShots().findIndex(s=>s.id===shot.id);const before=iconButton('left','Move earlier',()=>safe(()=>moveShot(shot.id,index-1))),after=iconButton('right','Move later',()=>safe(()=>moveShot(shot.id,index+1)));before.disabled=orderBusy||Boolean(term)||index===0;after.disabled=orderBusy||Boolean(term)||index===videoShots().length-1;const hint=document.createElement('span');hint.textContent='Drag to reorder';actions.replaceChildren(before,hint,after);}
+      card.append(cover,identity,actions);return card;
     }));
     if(!shots.length){const empty=document.createElement('p');empty.className='library-empty';empty.textContent=term?'No matching shots.':'No shots yet.';$('library-items').append(empty);}
     window.DirectorMotion?.pruneVideos();
   }
   function playShots(id=null,sequence=true){
+    if(sequence&&project?.editor_timeline)return safe(()=>DirectorTimeline.open({play:true}));
     playback=videoShots().filter(latest).map(s=>({id:s.id,title:s.title,file:latest(s).file,revision:latest(s).audio_applied_at||''}));
     if(!sequence)playback=playback.filter(s=>s.id===id);
     if(!playback.length)return;playIndex=Math.max(0,playback.findIndex(s=>s.id===id));
@@ -157,13 +211,13 @@
     $('shot-player-stage').querySelector('video')?.pause();
     $('shot-player-title').textContent=shot.title;$('shot-player-position').textContent=`${playIndex+1} / ${playback.length}`;
     $('shot-player-previous').disabled=playIndex===0;$('shot-player-next').disabled=playIndex===playback.length-1;
-    const player=DirectorPlayer.create(fileURL(shot.file)+(shot.revision?'?v='+encodeURIComponent(shot.revision):''),{autoplay:true,loop:playIndex===playback.length-1,onEnded:()=>{if(playIndex<playback.length-1){playIndex++;showPlayback();}}});$('shot-player-stage').replaceChildren(player);
+    const player=DirectorPlayer.create(fileURL(shot.file)+(shot.revision?'?v='+encodeURIComponent(shot.revision):''),{autoplay:true,loop:false,onEnded:()=>{if(playIndex<playback.length-1){playIndex++;showPlayback();}}});$('shot-player-stage').replaceChildren(player);
   }
   $('shot-player-close').onclick=()=>$('shot-player-dialog').close();
   $('shot-player-dialog').addEventListener('close',()=>{const video=$('shot-player-stage').querySelector('video');if(video){video.pause();video.removeAttribute('src');video.load();}$('shot-player-stage').replaceChildren();playback=[];});
   for(const [name,delta] of [['previous',-1],['next',1]])$('shot-player-'+name).onclick=()=>{playIndex=Math.max(0,Math.min(playback.length-1,playIndex+delta));showPlayback();};
   $('shot-player-edit').onclick=()=>{const id=playback[playIndex]?.id;$('shot-player-dialog').close();if(id)safe(()=>openShot(id));};
-  $('library-select').onclick=()=>{selecting=!selecting;if(!selecting)selectedShots.clear();renderLibrary(true);};
+  $('library-select').onclick=()=>{ordering=false;selecting=!selecting;if(!selecting)selectedShots.clear();renderLibrary(true);};
   $('library-select-all').onclick=()=>{for(const item of visibleItems())selectedShots.add(item.id);renderLibrary(true);};
   $('library-clear-selection').onclick=()=>{selectedShots.clear();renderLibrary(true);};
   $('library-download-selected').onclick=()=>safe(()=>batchAction('download'));

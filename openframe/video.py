@@ -204,9 +204,7 @@ def build_graph(saved, prefix, nodes=None):
             raise ValueError('Update ComfyUI to load reference audio.')
         graph['dc_speech_audio'] = dict(class_type='LoadAudio', inputs=dict(audio=speech['comfy_image']))
         encoder['ref_audios.ref_audio_0'] = ['dc_speech_audio', 0]
-        if saved.get('studio_app') == 'second-take':
-            prompt += ('\n<Audio 1> is the synchronized source audio. Match the original visible mouth shapes and their timing, including held-open mouths. Music must not create speaking movements. Add no speech.')
-        else:prompt += ('\n\nAudio reference: <Audio 1> supplies the speaking character’s vocal timbre, delivery and speech timing. '
+        if saved.get('studio_app') != 'second-take':prompt += ('\n\nAudio reference: <Audio 1> supplies the speaking character’s vocal timbre, delivery and speech timing. '
             'Preserve the character identity from the image references. Match mouth articulation and pauses to the speech performance. '
             'Use the words from <Audio 1> when the scene does not specify dialogue; otherwise preserve the scripted dialogue. '
             'Do not copy unrelated background music or environmental noise from the reference audio.')
@@ -217,9 +215,7 @@ def build_graph(saved, prefix, nodes=None):
     graph['124']['inputs']['steps'] = 8
     selflift.attach(graph,saved,nodes)
     graph['92']['inputs']['filename_prefix'] = prefix
-    if saved.get('studio_app')=='second-take':
-        video_prompt.attach_swap_appearances(graph,prompt,saved,nodes or {})
-    elif saved.get('prompt_enhancer'):
+    if saved.get('studio_app')!='second-take' and saved.get('prompt_enhancer'):
         video_prompt.attach(graph,prompt,saved.get('enhancer_model',''),saved['seed'],saved['duration'],nodes or {},[f'h3_reference_{i}' for i in range(len(refs))])
     result=prune(graph,'92')
     result.update({key:node for key,node in graph.items() if node['class_type']=='PreviewAny' and key.startswith('dc_')})

@@ -106,7 +106,6 @@ async def regenerate(request):
     from aiohttp import web
     from .storage import now,write_json
     studio=request.app['studio'];store=studio.store;pid=request.match_info['project'];sid=request.match_info['shot'];data=await request.json()
-    nodes=await studio.nodes() if hasattr(studio,'nodes') else {}
     project=store.load(pid);shot=store.shot(project,sid)
     if shot.get('studio_app')!='second-take':raise ValueError('Cut regeneration belongs to Second Take.')
     source=next((d for d in shot['drafts'] if d['id']==request.match_info['draft']),None)
@@ -165,13 +164,11 @@ async def regenerate(request):
                         graph['dc_swap_bg_prompt']['inputs']['on_true']=prompt
                     else:graph['136']['inputs']['prompt']=prompt
                     part['prompt']=prompt
-                if 'dc_swap_compact_prompt' not in graph:
-                    from .video_prompt import attach_swap_appearances
-                    caption_settings=copy.deepcopy(source['settings'])
-                    if removed is not None:
-                        caption_settings['reference_ids']=[r for j,r in enumerate(caption_settings['reference_ids']) if j!=removed]
-                        caption_settings['swap_roles']=[r for r in caption_settings['swap_roles'] if r!='background']
-                    attach_swap_appearances(graph,prompt or cut_prompt(graph),caption_settings,nodes)
+                # Old saved workflows must not retain the automatic vision captions.
+                graph['136']['inputs']['prompt']=prompt or cut_prompt(graph)
+                for key in list(graph):
+                    if key.startswith('dc_swap_look_') or key in ('dc_swap_compact_prompt','dc_enhanced_preview'):
+                        del graph[key]
                 if '92' in graph:graph['92']['inputs']['filename_prefix']=f'video/DirectorsCut/{pid}/{sid}/take{number}/part{i:02}'
                 part.update(status='queued',seed=seed)
                 part['composite']=False;part['mask_file']=None

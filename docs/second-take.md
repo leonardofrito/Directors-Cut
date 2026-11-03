@@ -14,7 +14,7 @@ The local pipeline detects cuts, processes them separately and joins the results
 
 Name the original performer by distinctive source features and assign the replacement @handle. For multiple people, keep each original-to-reference assignment explicit. The application adds compact per-cut placement hints without repeating the entire instruction set.
 
-When an installed vision-capable local Qwen3.5 4B enhancer is ready, each character image receives a short 25–45 word appearance description before H3 sampling. These captions describe appearance only; they do not rewrite the action, camera or replacement assignments. Without a ready enhancer, image-reference swaps still work without automatic text captions.
+Automatic appearance captioning is currently disabled in Second Take. Explicit swap directions pass directly to H3 after resolving @handles to the attached image/video references, without added visual descriptions, placement boilerplate or audio instructions. Regenerating a saved cut also removes the previous automatic caption nodes. Source audio conditioning and final soundtrack restoration remain separate from prompt enhancement.
 
 Second Take preserves the source environment. Environment replacement is not supported.
 
@@ -26,4 +26,4 @@ Open a completed result and choose **View cuts**. A cut with one version activat
 
 This is generative video editing, not exact pixel replacement. Identities, wardrobe, expressions, mouth shapes and occlusions can drift. Source audio is retained; that does not guarantee accurate lip sync. Automatic cut detection and person tracking may need manual correction. Smaller resolutions and shorter clips are useful for evaluating a result before a larger render.
 
-These features are in the current source branch. The published rc.7 Windows executable predates Second Take.
+Second Take is included in the rc.8 Windows executable and source package.

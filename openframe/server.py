@@ -744,7 +744,7 @@ class Studio:
         if is_video and settings.get('studio_app') == character_swap.APP:
             swap_prepared = await character_swap.prepare(self.store, p, settings)
             swap_parts = await swap_cuts.prepare_parts(self.store, p, swap_prepared, settings)
-            if len(uploaded)<9 and not settings.get('swap_analysis_id'):
+            if len(uploaded)<9 and not settings.get('swap_analysis_id') and not settings.get('swap_direction_enabled'):
                 original_cast=await swap_cuts.cast_map(self.store,p,swap_prepared)
                 swap_cast=(await self.upload_references(p,[original_cast]))[0]
             for part in swap_parts:
@@ -814,14 +814,15 @@ class Studio:
                              'motion_reference': part['uploaded'], 'swap_source': {**snapshot['swap_source'], 'audio': False}}
                     if part.get('uploaded_audio'):
                         child['audio_reference'] = part['uploaded_audio']
-                    if settings.get('swap_analysis_id'):
+                    if settings.get('swap_analysis_id') and not settings.get('swap_direction_enabled'):
                         manifest=swap_people.selected_manifest(self.store,p['id'],settings)
                         child['prompt']+='\nPer-shot cast placement:\n'+swap_people.position_text(self.store,p['id'],manifest,settings['swap_people_map'],part['start_frame'],part['end_frame'],settings['reference_ids'],False,compact=True)
                     if swap_cast:
                         original_number=len(uploaded)+1
                         child['references']=[*uploaded,swap_cast]
                         child['prompt'] += f'\n<Picture {original_number}> is the ORIGINAL source cast map before any replacements. Position descriptions in the user request identify people in this original cast map, not whoever happens to occupy that position in a later shot. Track each original person by their source face, hair and outfit when matching the replacement. This picture is only an identity map: follow <Video 1> for the current shot layout, viewpoint and motion, never the map picture composition. Do not retain a source face that the user asks to replace.'
-                    child['prompt'] += '\nTrack the same original performers throughout this cut; their screen positions may change.'
+                    if not settings.get('swap_direction_enabled'):
+                        child['prompt'] += '\nTrack the same original performers throughout this cut; their screen positions may change.'
                     child_graph, _ = video.build_graph(child, f'video/DirectorsCut/{p["id"]}/{s["id"]}/part{part["index"]:02}', nodes)
                     prefix=stem+f'.part{part["index"]:02}'
                     path=prefix+'.workflow.json'

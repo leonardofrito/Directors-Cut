@@ -176,6 +176,9 @@ def resolve(project, settings, store=None):
         auto_direction=bool(direction_lines) and all(re.fullmatch(r'Replace the .+ in @video1 with @[\w]+, including their face, hair and outfit\.',line) for line in direction_lines)
         user_direction=text if settings['swap_direction_enabled'] and not auto_direction else ''
         settings['prompt']='\n'.join(definitions)+('\n'+user_direction if user_direction else '')+'\nReplace each assigned performer completely: face, hair, physique and outfit. Keep each identity and wardrobe distinct. Follow the original gestures, expressions and visible mouth shapes. Preserve the source setting, camera, framing and timing. Keep unselected people unchanged. Ignore character-photo studio backgrounds. This is one source shot: add no people, cuts or dialogue.'
+    # Explicit swap directions are passed through without automatic expansion.
+    if settings['swap_direction_enabled'] and settings['swap_direction'].strip():
+        settings['prompt']=text
     return source
 
 

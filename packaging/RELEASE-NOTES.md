@@ -1,3 +1,14 @@
+# 0.1.0-rc.8
+
+- Three canvas workspaces: Asset Creation, Director’s Cut and Second Take, with a shared floating video prompt, seed controls, glass materials and media player.
+- Second Take imports a video, detects cuts and lets you assign replacement characters. Review individual cuts, generate new versions and join the chosen versions into a new result. Original takes remain available.
+- Explicit character-swap prompts now pass directly to H3 after resolving @references. Automatic visual captioning and prompt expansion are disabled in Second Take, including cut regeneration. Source audio remains attached separately.
+- Updated media review, quick reuse/download actions and take approval. Portrait batches scroll through all versions. Image-edit presets are accessible again.
+- Unified selector heights and generation controls, fixed closing menus intercepting clicks, and shared playback controls in the trim dialog. Header actions read Edit Timeline, Preview Final Cut and Download.
+- Includes the Bank of Ideas demo and existing MP4/DaVinci timeline export.
+- Character replacement remains experimental: identities, clothing and lip sync can drift. Model terms remain separate from the MIT application license.
+- Windows remains unsigned. macOS/Linux source instructions are included; native packages are not published. Package verification uses isolated data with no GPU generation or model downloads.
+
 # 0.1.0-rc.7
 
 - Bundled Bank of Ideas example with 14 approved shots and 12 references. Opening the demo preserves your previous edits; no generation starts automatically.

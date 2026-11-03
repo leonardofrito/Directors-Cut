@@ -20,7 +20,7 @@ def sign_windows(executable,required=False,verify_only=False):
     subprocess.run(command,cwd=ROOT,check=True)
 def dependency_notices():
     from packaging.requirements import Requirement
-    pending=['aiohttp','comfy-sdk','comfy-api-proxy','Pillow','psutil'];seen=set();sections=[]
+    pending=['aiohttp','comfy-sdk','comfy-api-proxy','Pillow','psutil','scenedetect','opencv-python'];seen=set();sections=[]
     while pending:
         name=pending.pop();dist=metadata.distribution(name);key=dist.metadata['Name'].lower().replace('_','-')
         if key in seen:continue

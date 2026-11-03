@@ -11,12 +11,12 @@
       .preset-card[aria-pressed=true],.dropdown-image-grid .image-option[aria-selected=true],.take.selected{border-color:#c4d411!important;box-shadow:inset 0 1px #ffffff07,0 0 0 1px #c4d41144!important}
       .video-camera-choices>.generation-choice[aria-pressed=true],.generation-choice-menu>.generation-choice[aria-pressed=true],.video-ratio-choices>.video-ratio-option[aria-pressed=true],.generation-controls>button[aria-expanded=true],.video-camera-tabs>.video-camera-tab[aria-pressed=true]{background:#becc00!important;color:#e8e8e8!important;border-color:#c4d41188!important}
       .selection-motion:before{background:#becc00!important;border-color:#c4d41166!important;box-shadow:inset 0 1px #ffffff07!important}
-      #generate,#video-generate,#save-as-asset{background:#becc00e6!important;color:#000000!important;border-color:#c8ff0088!important;border-top-color:#ffffff29!important;box-shadow:inset 0 1px #ffffff29,inset 0 -1px #ffffff07,0 0 18px #81a80029,0 4px 14px #0006!important}
-      #generate:before,#video-generate:before,#save-as-asset:before{background:radial-gradient(ellipse 48% 130% at 12% 110%,#c8ff00ee,transparent 80%),radial-gradient(ellipse 46% 140% at 88% -5%,#c8ff00dd,transparent 80%),radial-gradient(ellipse 38% 120% at 60% 110%,#c8ff00b3,transparent 80%)!important}
-      #generate:after,#video-generate:after,#save-as-asset:after{background:radial-gradient(90px circle at var(--hover-x,50%) var(--hover-y,0%),#ffffff29,transparent),linear-gradient(90deg,transparent,#becc0038 32%,#becc0055 50%,#becc0038 68%,transparent),url('/assets/materials/frost-grain.svg'),linear-gradient(180deg,#ffffff07,#00000008)!important}
+      #generate,#video-generate,#save-as-asset,.join-cuts-action{background:#becc00e6!important;color:#000000!important;border-color:#c8ff0088!important;border-top-color:#ffffff29!important;box-shadow:inset 0 1px #ffffff29,inset 0 -1px #ffffff07,0 0 18px #81a80029,0 4px 14px #0006!important}
+      #generate:before,#video-generate:before,#save-as-asset:before,.join-cuts-action:before{background:radial-gradient(ellipse 48% 130% at 12% 110%,#c8ff00ee,transparent 80%),radial-gradient(ellipse 46% 140% at 88% -5%,#c8ff00dd,transparent 80%),radial-gradient(ellipse 38% 120% at 60% 110%,#c8ff00b3,transparent 80%)!important}
+      #generate:after,#video-generate:after,#save-as-asset:after,.join-cuts-action:after{background:radial-gradient(90px circle at var(--hover-x,50%) var(--hover-y,0%),#ffffff29,transparent),linear-gradient(90deg,transparent,#becc0038 32%,#becc0055 50%,#becc0038 68%,transparent),url('/assets/materials/frost-grain.svg'),linear-gradient(180deg,#ffffff07,#00000008)!important}
 
 /* Selected controls share the green material with black lettering, including their captions. */
-#generate,#video-generate,#save-as-asset{text-shadow:none!important}
+#generate,#video-generate,#save-as-asset,.join-cuts-action{text-shadow:none!important}
 .preset-card[aria-pressed=true],.preset-card[aria-pressed=true]:hover,.preset-card[aria-pressed=true]:focus-visible{background:linear-gradient(180deg,#ffffff07,#00000004),#becc00!important;color:#000!important}
 .preset-card[aria-pressed=true] .preset-card-label,.preset-card[aria-pressed=true]>span:last-child{background:#becc00!important;color:#000!important;text-shadow:none}
 .preset-card-image:after{display:none!important}

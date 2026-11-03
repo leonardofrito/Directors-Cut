@@ -1,9 +1,9 @@
 /* A bounded native-video player with app controls; no playback timers or library. */
 (() => {
   const clock=value=>{const seconds=Math.max(0,Math.floor(Number(value)||0));return Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0');};
-  function create(src,{autoplay=false,loop=true,onEnded=null}={}){
+  function create(src,{autoplay=false,loop=true,onEnded=null,media=null}={}){
     const root=document.createElement('div');root.className='studio-player';
-    const video=document.createElement('video');video.playsInline=true;video.preload='metadata';video.loop=loop;video.src=src;
+    const video=media||document.createElement('video');video.controls=false;video.playsInline=true;video.preload='metadata';video.loop=loop;if(src)video.src=src;
     const toggle=button('','studio-player-toggle',()=>{if(video.paused)play(false);else video.pause();});
     const anchor=document.createElement('div');anchor.className='studio-player-play-anchor';anchor.append(toggle);
     let lastPlaybackIcon=null,lastSoundIcon=null,lastAudibleVolume=1,revealTimer=null;

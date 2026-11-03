@@ -1,0 +1,289 @@
+{
+  "92": {
+    "inputs": {
+      "filename_prefix": "video/SecondTake",
+      "format": "auto",
+      "codec": "auto",
+      "video": [
+        "130",
+        0
+      ],
+      "format.codec": "auto"
+    },
+    "class_type": "SaveVideo",
+    "_meta": {
+      "title": "Save Video"
+    }
+  },
+  "130": {
+    "inputs": {
+      "fps": 24,
+      "bit_depth": 8,
+      "color_space": "sRGB",
+      "codec": "none",
+      "images": [
+        "122",
+        0
+      ],
+      "audio": [
+        "121",
+        0
+      ]
+    },
+    "class_type": "CreateVideo",
+    "_meta": {
+      "title": "Create Video"
+    }
+  },
+  "122": {
+    "inputs": {
+      "samples": [
+        "125",
+        0
+      ],
+      "vae": [
+        "119",
+        0
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE Decode"
+    }
+  },
+  "125": {
+    "class_type": "SelfLiftH3Sampler",
+    "inputs": {
+      "model": [
+        "143",
+        0
+      ],
+      "positive": [
+        "136",
+        0
+      ],
+      "negative": [
+        "dc_selflift_negative",
+        0
+      ],
+      "vae": [
+        "119",
+        0
+      ],
+      "latent_image": [
+        "136",
+        1
+      ],
+      "sampler": [
+        "123",
+        0
+      ],
+      "sigmas": [
+        "124",
+        0
+      ],
+      "seed": 1,
+      "cfg": 1.0,
+      "transition_step": 4,
+      "lowres_scale": 0.5,
+      "rho": 0.6,
+      "w_min": 1.0,
+      "w_max": 1.0,
+      "upscaler_model": "none",
+      "highres_tiling": false,
+      "upscaler_unload": true
+    }
+  },
+  "143": {
+    "class_type": "BlockSparseAttention",
+    "inputs": {
+      "model": [
+        "142",
+        0
+      ],
+      "selection": "vsa",
+      "selection.keep_percent": 10,
+      "start_percent": 0,
+      "end_percent": 1,
+      "dense_blocks": "",
+      "min_tokens": 12288,
+      "extra_tokens": 256,
+      "sink_conditioning": "exact_kv_and_rows",
+      "verbose": false
+    }
+  },
+  "142": {
+    "class_type": "ModelAttentionBackend",
+    "inputs": {
+      "model": [
+        "141",
+        0
+      ],
+      "attention": "comfy kitchen attention"
+    }
+  },
+  "141": {
+    "class_type": "MiniMaxH3SigmaShift",
+    "inputs": {
+      "model": [
+        "dc_lora_0",
+        0
+      ],
+      "shift_video": 12.0,
+      "shift_audio": 3.0
+    }
+  },
+  "dc_lora_0": {
+    "class_type": "LoraLoaderModelOnly",
+    "inputs": {
+      "model": [
+        "127",
+        0
+      ],
+      "lora_name": "h3_character_swap_v1.5.safetensors",
+      "strength_model": 1.0
+    }
+  },
+  "127": {
+    "inputs": {
+      "unet_name": "fasth3_omniref_8step_w4a8gptqmixed.safetensors",
+      "weight_dtype": "default"
+    },
+    "class_type": "UNETLoader",
+    "_meta": {
+      "title": "Load Diffusion Model"
+    }
+  },
+  "136": {
+    "inputs": {
+      "ref_image_size": "match",
+      "clip": [
+        "128",
+        0
+      ],
+      "prompt": "Replace the main foreground person in <Video 1> with the character in <Picture 1>. Keep the reference character identity, face, hair, body proportions and clothing. Follow the original performer pose, gestures, expression, gaze and movement throughout the video. Preserve the original scene, other people, objects, lighting, camera movement, framing, timing and cuts. Replace only this one person. Do not add another copy of the character. The studio background of <Picture 1> is not part of the scene.",
+      "width": 864,
+      "height": 480,
+      "length": 124,
+      "vae": [
+        "119",
+        0
+      ],
+      "audio_vae": [
+        "120",
+        0
+      ],
+      "ref_images.ref_image_0": [
+        "h3_reference_0",
+        0
+      ],
+      "ref_videos.ref_video_0": [
+        "dc_motion_frames",
+        0
+      ]
+    },
+    "class_type": "MiniMaxH3ReferenceToVideo",
+    "_meta": {
+      "title": "MiniMax H3 Reference to Video"
+    }
+  },
+  "128": {
+    "inputs": {
+      "clip_name": "qwen3vl_32b_minimax_h3_w4a8_mixed.safetensors",
+      "type": "minimax",
+      "device": "default"
+    },
+    "class_type": "CLIPLoader",
+    "_meta": {
+      "title": "Load CLIP"
+    }
+  },
+  "119": {
+    "inputs": {
+      "vae_name": "minimax_h3_video_vae_int8_convrot.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "Load VAE"
+    }
+  },
+  "120": {
+    "inputs": {
+      "vae_name": "minimax_h3_audio_vae_fp32.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "Load VAE"
+    }
+  },
+  "h3_reference_0": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "replacement.png"
+    }
+  },
+  "dc_motion_frames": {
+    "class_type": "GetVideoComponents",
+    "inputs": {
+      "video": [
+        "dc_motion_video",
+        0
+      ]
+    }
+  },
+  "dc_motion_video": {
+    "class_type": "LoadVideo",
+    "inputs": {
+      "file": "source.mp4"
+    }
+  },
+  "dc_selflift_negative": {
+    "class_type": "ConditioningZeroOut",
+    "inputs": {
+      "conditioning": [
+        "136",
+        0
+      ]
+    }
+  },
+  "123": {
+    "inputs": {
+      "sampler_name": "euler"
+    },
+    "class_type": "KSamplerSelect",
+    "_meta": {
+      "title": "KSamplerSelect"
+    }
+  },
+  "124": {
+    "inputs": {
+      "scheduler": "simple",
+      "denoise": 1,
+      "model": [
+        "143",
+        0
+      ],
+      "steps": 8
+    },
+    "class_type": "BasicScheduler",
+    "_meta": {
+      "title": "BasicScheduler"
+    }
+  },
+  "121": {
+    "inputs": {
+      "samples": [
+        "125",
+        0
+      ],
+      "vae": [
+        "120",
+        0
+      ]
+    },
+    "class_type": "VAEDecodeAudio",
+    "_meta": {
+      "title": "VAE Decode Audio"
+    }
+  }
+}

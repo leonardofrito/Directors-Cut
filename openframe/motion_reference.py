@@ -5,6 +5,7 @@ from pathlib import Path
 import shutil
 import uuid
 import logging
+import math
 
 from .storage import now
 
@@ -75,8 +76,23 @@ async def attach(request, store):
                 if size > MAX_VIDEO:
                     raise ValueError('Choose a motion video up to 128 MB.')
                 await asyncio.to_thread(output.write, chunk)
+        # Selected source range is validated independently of the browser handles.
+        fields={}
+        while (extra := await reader.next()) is not None:
+            if extra.name not in ('start','end') or extra.filename:
+                raise ValueError('Unexpected motion upload field.')
+            raw=await extra.read_chunk(128)
+            if len(raw)>80 or await extra.read_chunk(128):
+                raise ValueError('Invalid motion range.')
+            try: fields[extra.name]=float(raw.decode('utf-8'))
+            except (ValueError,UnicodeDecodeError): raise ValueError('Invalid motion range.')
+        from .sequence import probe
+        info=await probe(original)
+        start=fields.get('start',0.0);end=fields.get('end',min(info['duration'],15.0))
+        if not all(math.isfinite(n) for n in (start,end)) or start<0 or end>info['duration']+1/24 or not 2-1e-6<=end-start<=15+1e-6:
+            raise ValueError('Choose a 2–15 second range within the motion video.')
         # Bound decoding memory: 24 fps, at most 15 seconds, no source soundtrack.
-        progress = await run_ffmpeg('-threads', '2', '-i', original, '-t', '15', '-an', '-vf',
+        progress = await run_ffmpeg('-threads', '2', '-ss', str(start), '-i', original, '-t', str(end-start), '-an', '-vf',
             "fps=24,scale=w='min(512,iw)':h='min(512,ih)':force_original_aspect_ratio=decrease:force_divisible_by=2",
             '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '21', '-threads', '2', '-movflags', '+faststart',
             '-progress', 'pipe:1', '-y', target)
@@ -87,7 +103,7 @@ async def attach(request, store):
         project = store.load(project['id'])
         shot = store.shot(project, shot['id'])
         ref = dict(id=ident, name=Path(part.filename).name[:120], file=f'references/motion/{ident}.mp4',
-            thumbnail=f'references/motion/{ident}.jpg', duration=round(frames/24, 2), fps=24, created_at=now())
+            thumbnail=f'references/motion/{ident}.jpg', source_start=start, source_end=end, duration=round(frames/24, 2), fps=24, created_at=now())
         project.setdefault('motion_references', []).append(ref)
         shot['motion_reference_id'] = ident
         store.save(project)

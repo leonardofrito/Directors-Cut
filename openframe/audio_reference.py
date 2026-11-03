@@ -71,6 +71,8 @@ async def attach(request, store):
             duration=round(duration, 2), waveform=peaks, created_at=now())
         project.setdefault('audio_references', []).append(ref)
         shot[SLOTS[kind]] = ident
+        if kind == 'output':
+            shot['output_audio_selection_id'] = ident
         store.save(project)
         complete = True
         return project

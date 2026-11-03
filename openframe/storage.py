@@ -107,6 +107,16 @@ class Store:
             raise ValueError('File is outside the project folder.')
         return result
 
+    def hide_swap_take(self, project, shot, draft_id):
+        if shot.get('studio_app') != 'second-take':
+            raise ValueError('Choose a swap take.')
+        take = next((d for d in shot['drafts'] if d['id'] == draft_id), None)
+        if not take or take.get('status') not in ('cancelled', 'failed'):
+            raise ValueError('Only cancelled or failed swap takes can be removed here.')
+        # Retain numbering and recoverable metadata; never reuse a prior output filename.
+        take['deleted_at'] = now()
+        self.save(project)
+
     def approve(self, project, shot, draft_id):
         draft = next((d for d in shot['drafts'] if d['id'] == draft_id and d['status'] == 'succeeded' and d.get('file')), None)
         if not draft:

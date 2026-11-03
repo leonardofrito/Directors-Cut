@@ -156,7 +156,7 @@
   const button=(text,cls,callback)=>{const item=document.createElement('button');item.type='button';item.textContent=text;item.className=cls;item.onclick=callback;return item;};
   const reduce=matchMedia('(prefers-reduced-motion: reduce)'),popovers=new WeakMap();
   function popoverState(menu){
-    if(!popovers.has(menu))popovers.set(menu,{animation:null,ratioAnimation:null,closing:false});
+    if(!popovers.has(menu))popovers.set(menu,{animation:null,ratioAnimation:null,closing:false,closeTimer:null});
     return popovers.get(menu);
   }
   function cancelRatio(menu){
@@ -166,7 +166,7 @@
   }
   function openChoices(menu,fresh=false){
     const state=popoverState(menu),visible=!fresh&&!menu.hidden;
-    cancelRatio(menu);state.animation?.cancel();state.animation=null;state.closing=false;
+    cancelRatio(menu);clearTimeout(state.closeTimer);state.closeTimer=null;state.animation?.cancel();state.animation=null;state.closing=false;
     menu.hidden=false;menu.inert=false;
     if(reduce.matches||!menu.animate)return;
     const animation=menu.animate([
@@ -180,10 +180,12 @@
     if(menu.hidden||state.closing)return;
     const from=getComputedStyle(menu);const opacity=from.opacity,transform=from.transform;
     state.animation?.cancel();state.animation=null;state.closing=true;menu.inert=true;
-    const finish=()=>{menu.hidden=true;menu.inert=false;state.closing=false;state.animation=null;onClosed?.();};
+    const finish=()=>{if(!state.closing)return;clearTimeout(state.closeTimer);state.closeTimer=null;const pending=state.animation;state.animation=null;menu.hidden=true;menu.inert=false;state.closing=false;pending?.cancel();onClosed?.();};
     if(reduce.matches||!menu.animate){finish();return;}
     const animation=menu.animate([{opacity,transform},{opacity:0,transform:'translateY(6px) scale(.985)'}],{duration:150,easing:'cubic-bezier(.4,0,1,1)',fill:'forwards'});
-    state.animation=animation;animation.onfinish=()=>{if(state.animation!==animation)return;finish();animation.cancel();};
+    state.animation=animation;animation.onfinish=()=>{if(state.animation===animation)finish();};
+    // A background tab can suspend Web Animations. Dismissal must still complete.
+    state.closeTimer=setTimeout(()=>{if(state.animation===animation)finish();},220);
   }
   function chooseRatio(menu,item,value,onSelect){
     const state=popoverState(menu);
@@ -247,4 +249,33 @@
   }
   const presetLabel=value=>String(value || '').replace(/\bstoryboard sketch\b/gi,'Ink sketch');
   window.DirectorControls={ratioChoices,sliderChoices,presetLabel,openChoices,closeChoices};
+})();
+
+/* Compact seed control shared by all workspaces. */
+(()=>{
+  const key='dc-seeds-v1',prefs={},widgets=[],modes=['fixed','increment','decrement','random'];
+  const svg=path=>`<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${path}</svg>`;
+  const icons={fixed:svg('<path d="m15 4 5 5M3 21l4-1 13-13-4-4L3 16v5ZM3 3l18 18"/>'),increment:'+1',decrement:'−1',random:svg('<path d="M3 6h3c5 0 7 12 12 12h3M17 14l4 4-4 4M3 18h3c2 0 4-3 6-6s4-6 6-6h3M17 2l4 4-4 4"/>')};
+  try{const saved=JSON.parse(localStorage.getItem(key)||'{}');for(const [scope,row]of Object.entries(saved))if(Number.isSafeInteger(row.value)&&row.value>=-1)prefs[scope]={value:Math.max(0,row.value),mode:modes.includes(row.mode)?row.mode:row.value===-1?'random':'fixed'};}catch{}
+  const pref=scope=>prefs[scope]||(prefs[scope]={value:0,mode:'random'}),mode=scope=>pref(scope).mode,get=scope=>mode(scope)==='random'?-1:pref(scope).value;
+  const scopeOf=w=>w.video?(document.body.dataset.studioApp==='second-take'?'second-take':'directors-cut'):'asset-creation';
+  function paint(){for(const w of widgets){const scope=scopeOf(w),n=get(scope);w.input.value=String(n);w.trigger.innerHTML=icons[mode(scope)];w.trigger.title='Seed mode: '+mode(scope);for(const b of w.popup.children)b.setAttribute('aria-pressed',String(b.dataset.mode===mode(scope)));}}
+  function commit(){try{localStorage.setItem(key,JSON.stringify(prefs));}catch{}paint();document.dispatchEvent(new Event('director-seed-change'));}
+  function set(scope,n){if(!Number.isSafeInteger(n)||n < -1)throw new Error('Invalid seed');pref(scope).mode=n===-1?'random':'fixed';if(n>=0)pref(scope).value=n;commit();}
+  function advance(scope,count=1,expected=null){const p=pref(scope);if(expected&&(expected.seed!==get(scope)||expected.seed_mode!==mode(scope)))return;if(['increment','decrement'].includes(p.mode)){p.value=Number((BigInt(p.value)+BigInt(count)*(p.mode==='increment'?1n:-1n)+(1n<<53n))%(1n<<53n));commit();}}
+  function close(){for(const w of widgets){w.popup.hidden=true;w.trigger.setAttribute('aria-expanded','false');}}
+  for(const [id,video]of [['choose-size',false],['video-choose-size',true]]){
+    const size=document.getElementById(id);if(!size)continue;
+    const group=document.createElement('div');group.className='seed-control';group.setAttribute('role','group');group.setAttribute('aria-label','Seed');
+    const minus=document.createElement('button'),plus=document.createElement('button'),trigger=document.createElement('button'),input=document.createElement('input'),popup=document.createElement('div');
+    for(const b of [minus,plus,trigger])b.type='button';minus.textContent='−';plus.textContent='+';minus.setAttribute('aria-label','Decrease seed');plus.setAttribute('aria-label','Increase seed');input.type='text';input.inputMode='numeric';input.setAttribute('aria-label','Seed value');trigger.id=video?'video-choose-seed':'choose-seed';trigger.setAttribute('aria-label','Seed mode');trigger.setAttribute('aria-expanded','false');popup.className='seed-mode-menu';popup.hidden=true;popup.setAttribute('role','group');popup.setAttribute('aria-label','Seed modes');group.append(minus,input,trigger,plus);size.after(group);size.closest('.quick-generation').append(popup);
+    const w={group,minus,plus,trigger,input,popup,video};widgets.push(w);
+    for(const name of modes){const b=document.createElement('button');b.type='button';b.innerHTML=icons[name];b.dataset.mode=name;b.setAttribute('aria-label',name+' seed');b.onclick=()=>{pref(scopeOf(w)).mode=name;commit();close();};popup.append(b);}
+    trigger.onclick=()=>{const opening=popup.hidden;close();window.closeGenerationChoices?.();window.DirectorVideo?.closeChoices();if(opening){paint();popup.hidden=false;trigger.setAttribute('aria-expanded','true');}};
+    for(const [button,delta]of [[minus,-1],[plus,1]])button.onclick=()=>{const p=pref(scopeOf(w));if(p.mode==='random')p.mode='fixed';p.value=Math.max(0,Math.min(Number.MAX_SAFE_INTEGER,p.value+delta));commit();};
+    input.oninput=()=>{const raw=input.value.trim(),n=Number(raw);if(!/^-?\d+$/.test(raw)||!Number.isSafeInteger(n)||n < -1){input.setAttribute('aria-invalid','true');return;}input.removeAttribute('aria-invalid');const p=pref(scopeOf(w));if(n===-1)p.mode='random';else{if(p.mode==='random')p.mode='fixed';p.value=n;}commit();};input.onblur=()=>{input.removeAttribute('aria-invalid');paint();};input.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();e.stopPropagation();input.blur();}};
+    new MutationObserver(()=>{for(const c of [minus,plus,input])c.disabled=trigger.disabled;}).observe(trigger,{attributes:true,attributeFilter:['disabled']});
+  }
+  document.addEventListener('click',e=>{const open=widgets.find(w=>!w.popup.hidden);if(open&&!open.popup.contains(e.target)&&!open.group.contains(e.target)){close();e.preventDefault();e.stopImmediatePropagation();}},true);
+  document.addEventListener('keydown',e=>{if(e.key==='Escape')close();});new MutationObserver(()=>{close();paint();}).observe(document.body,{attributes:true,attributeFilter:['data-studio-app']});window.DirectorSeeds={get,set,mode,advance};paint();
 })();

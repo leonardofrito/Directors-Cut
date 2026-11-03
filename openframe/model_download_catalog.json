@@ -731,6 +731,41 @@
       "note": "Experimental: requires an H3-compatible GGUF encoder loader with full vision support. Download availability does not certify REF2VA reference fidelity.",
       "aliases": [],
       "source": "https://huggingface.co/leejet/MiniMax-H3-GGUF"
+    },
+    {
+      "id": "h3-character-swap-v15",
+      "scope": "video",
+      "role": "character_swap",
+      "variant": "Character Swap 1.5",
+      "repo": "akatz-ai/MiniMax-H3-Character-Swap-LoRA",
+      "revision": "96ea3407b230b6f7df71c58c70e31df96bd7e533",
+      "path": "h3_character_swap_v1.5.safetensors",
+      "filename": "h3_character_swap_v1.5.safetensors",
+      "folder": "loras",
+      "size": 155110792,
+      "sha256": "8f2c3c3eba161df8d0c6099598b4730f641f5ce01e04cd16d2427cff8a35218f",
+      "unofficial": true,
+      "note": "",
+      "aliases": [],
+      "source": "https://huggingface.co/akatz-ai/MiniMax-H3-Character-Swap-LoRA"
+    },
+    {
+      "id": "sam31-people",
+      "scope": "second-take",
+      "role": "tracker",
+      "label": "SAM 3.1 \u00b7 People tracking",
+      "variant": "FP16",
+      "repo": "Comfy-Org/sam3.1",
+      "revision": "7bb8374780a725b4353ed31f3a9395c9742b5621",
+      "path": "checkpoints/sam3.1_multiplex_fp16.safetensors",
+      "filename": "sam3.1_multiplex_fp16.safetensors",
+      "folder": "checkpoints",
+      "size": 1745546848,
+      "sha256": "9ba99c92703c2e8b4f47de2d34a539bb8e18923049e238b780d70dbe6368eb03",
+      "unofficial": false,
+      "note": "",
+      "aliases": [],
+      "source": "https://huggingface.co/Comfy-Org/sam3.1"
     }
   ],
   "unavailable": [

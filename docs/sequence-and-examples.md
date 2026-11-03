@@ -20,15 +20,14 @@ Once saved, the edited timeline owns Play sequence and exports; reordering the s
 
 Export → MP4 renders the saved edits, fitting mixed frame sizes onto the first source's frame without cropping. Encoding is CPU-only, bounded to two threads, with one export at a time. Export → DaVinci Resolve creates an OTIOZ timeline with original media, source trims, gaps and four separate tracks. Import with File → Import → Timeline in Resolve 18.5 or newer. The official OpenTimelineIO reader validated the bundle, clips, timing and media extraction; the Resolve GUI has not been certified by this check.
 
-## Example and tutorial
+## Example
 
 Projects → Bank of Ideas installs the curated bundled example on explicit request. Its 14 approved clips and 12 image references are compressed for distribution (8.8 MB). It contains no failed takes, unselected generations, machine settings, uploaded motion/speech recordings or model weights. Opening it again preserves edits instead of overwriting the project. The original local commercial project remains separate.
 
-Tutorial opens the example, guides the user to create a new character, and then copies Compose Yourself into a new video shot with @juanito replaced by the new character handle/reference. The bank reference stays. Initial scene generation is 0.4 MP. Every generation requires an explicit user click; the tutorial does not render automatically.
 
 The release staging script includes only the curated examples directory, not local projects or runtime data. Changes are local until a new release is explicitly published.
 
-Validation: live UI ordering/restoration/playback, completed DaVinci export, 26 muted looping previews, tutorial intro; isolated CPU mixed-size/silent-clip export and duration checks; official OTIOZ parse/extraction; temporary example import and non-overwrite checks. No GPU inference for verification.
+Validation: live UI ordering/restoration/playback, completed DaVinci export, 26 muted looping previews; isolated CPU mixed-size/silent-clip export and duration checks; official OTIOZ parse/extraction; temporary example import and non-overwrite checks. No GPU inference for verification.
 
 Format references:
 - https://documents.blackmagicdesign.com/SupportNotes/DaVinci_Resolve_18.5_New_Features_Guide.pdf

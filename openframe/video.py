@@ -49,6 +49,9 @@ def model_files(data):
 
 
 def settings(data):
+    if data.get('studio_app') == 'second-take':
+        from . import character_swap
+        return character_swap.settings(data)
     prompt = str(data.get('prompt', '')).strip()
     if len(prompt) > 20000:
         raise ValueError('Video prompt is too long (20,000 characters maximum).')
@@ -75,7 +78,7 @@ def settings(data):
     motion_id = data.get('motion_reference_id', '')
     if not isinstance(motion_id, str) or motion_id and not re.fullmatch(r'[a-f0-9]{32}', motion_id):
         raise ValueError('Choose an uploaded motion reference.')
-    audio_ids = {key: data.get(key, '') for key in ('audio_reference_id', 'output_audio_id')}
+    audio_ids = {key: data.get(key, '') for key in ('audio_reference_id', 'output_audio_id', 'output_audio_selection_id')}
     if any(not isinstance(ident, str) or ident and not re.fullmatch(r'[a-f0-9]{32}', ident) for ident in audio_ids.values()):
         raise ValueError('Choose an uploaded audio file.')
     enhance = data.get('prompt_enhancer', False)
@@ -169,7 +172,7 @@ def build_graph(saved, prefix, nodes=None):
     refs = saved.get('references', [])
     if len(refs) > 9:
         raise ValueError('H3 accepts up to 9 image references.')
-    prompt = reference_prompt(saved['prompt'], refs, saved)
+    prompt = saved['prompt'] if saved.get('studio_app') == 'second-take' else reference_prompt(saved['prompt'], refs, saved)
     prompt = video_prompt.apply_direction(prompt, video_prompt.validate(saved.get('video_direction', {})))
     encoder = graph['136']['inputs']
     for key in list(encoder):
@@ -185,7 +188,12 @@ def build_graph(saved, prefix, nodes=None):
         graph['dc_motion_video'] = dict(class_type='LoadVideo', inputs=dict(file=motion['comfy_image']))
         graph['dc_motion_frames'] = dict(class_type='GetVideoComponents', inputs=dict(video=['dc_motion_video', 0]))
         encoder['ref_videos.ref_video_0'] = ['dc_motion_frames', 0]
-        prompt += ('\n\nVideo reference: <Video 1> supplies only the reference roles explicitly requested in the scene. '
+        if saved.get('studio_app') == 'second-take' and saved.get('swap_source', {}).get('audio'):
+            schema = (nodes or {}).get('MiniMaxH3ReferenceToVideo', {}).get('input', {})
+            if nodes is None or any('ref_video_audios' in fields for fields in schema.values() if isinstance(fields, dict)):
+                encoder['ref_video_audios.ref_video_audio_0'] = ['dc_motion_frames', 1]
+        if saved.get('studio_app') != 'second-take':
+            prompt += ('\n\nVideo reference: <Video 1> supplies only the reference roles explicitly requested in the scene. '
             'For camera-only use, follow its camera path, movement direction, viewpoint progression and timing; '
             'do not transfer the source performer’s body movement to the character. '
             'For requested action transfer, use the referenced action while preserving the image-defined identity. '
@@ -196,18 +204,22 @@ def build_graph(saved, prefix, nodes=None):
             raise ValueError('Update ComfyUI to load reference audio.')
         graph['dc_speech_audio'] = dict(class_type='LoadAudio', inputs=dict(audio=speech['comfy_image']))
         encoder['ref_audios.ref_audio_0'] = ['dc_speech_audio', 0]
-        prompt += ('\n\nAudio reference: <Audio 1> supplies the speaking character’s vocal timbre, delivery and speech timing. '
+        if saved.get('studio_app') == 'second-take':
+            prompt += ('\n<Audio 1> is the synchronized source audio. Match the original visible mouth shapes and their timing, including held-open mouths. Music must not create speaking movements. Add no speech.')
+        else:prompt += ('\n\nAudio reference: <Audio 1> supplies the speaking character’s vocal timbre, delivery and speech timing. '
             'Preserve the character identity from the image references. Match mouth articulation and pauses to the speech performance. '
             'Use the words from <Audio 1> when the scene does not specify dialogue; otherwise preserve the scripted dialogue. '
             'Do not copy unrelated background music or environmental noise from the reference audio.')
     frames = round(saved['duration'] * 24)
     frames += (5 - frames) % 17
-    encoder.update(prompt=prompt, **image_dimensions(saved['ratio'], saved['megapixels'], minimum=.2), length=frames, ref_image_size='match')
+    encoder.update(prompt=prompt, **image_dimensions(saved.get('swap_ratio', saved['ratio']), saved['megapixels'], minimum=.2), length=frames, ref_image_size='match')
     graph['129']['inputs']['noise_seed'] = saved['seed']
     graph['124']['inputs']['steps'] = 8
     selflift.attach(graph,saved,nodes)
     graph['92']['inputs']['filename_prefix'] = prefix
-    if saved.get('prompt_enhancer'):
+    if saved.get('studio_app')=='second-take':
+        video_prompt.attach_swap_appearances(graph,prompt,saved,nodes or {})
+    elif saved.get('prompt_enhancer'):
         video_prompt.attach(graph,prompt,saved.get('enhancer_model',''),saved['seed'],saved['duration'],nodes or {},[f'h3_reference_{i}' for i in range(len(refs))])
     result=prune(graph,'92')
     result.update({key:node for key,node in graph.items() if node['class_type']=='PreviewAny' and key.startswith('dc_')})

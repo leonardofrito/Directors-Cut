@@ -20,9 +20,13 @@ Create characters, props and locations, then bring them together in reference-dr
 
 A compatible ComfyUI installation and model files are required separately. The current Windows build is an unsigned release candidate.
 
+## Current source
+
+The main branch includes Asset Creation, Director’s Cut and Second Take character replacement, with per-cut revisions and local visual appearance descriptions. [Second Take guide](docs/second-take.md). The published rc.7 Windows EXE predates these additions; run the source to use them.
+
 ## Bank of Ideas demo
 
-Open **Projects → Bank of Ideas** to load the bundled example: 14 approved shots and 12 image references in a separate editable project. The optional tutorial guides you through creating a character and using it in a bank shot. Model weights are separate; every generation requires your click.
+Open **Projects → Bank of Ideas** to load the bundled example: 14 approved shots and 12 image references in a separate editable project. Model weights are separate; every generation requires your click.
 
 Use **Library → Shots → Timeline** to arrange and trim clips on V1/V2 and A1/A2, preview the edit, and export MP4 or a DaVinci Resolve timeline. [Sequence and example guide](docs/sequence-and-examples.md).
 

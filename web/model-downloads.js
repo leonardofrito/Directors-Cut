@@ -1,6 +1,6 @@
 /* Shared, explicit model acquisition for the existing engine file selectors. */
 (()=>{
- let catalog={models:[],unavailable:[]},jobs=[],loading=false;const active=new Set(['queued','downloading','verifying']);
+ let catalog={models:[],unavailable:[]},jobs=[],loading=false,swapAttempted=false,swapStarting=false;const active=new Set(['queued','downloading','verifying']);
  const basename=value=>String(value||'').replaceAll('\\','/').split('/').at(-1);
  const size=n=>n?`${(n/1e9).toFixed(n>=1e10?1:2)} GB`:'';
  const matching=(scope,role,format)=>catalog.models.filter(m=>(m.scope===scope||(scope==='video'&&['h3','omni'].includes(m.scope))||(scope==='shared'&&m.role==='enhancer'&&m.shared))&&m.role===role&&(!format||!['diffusion','encoder'].includes(role)||(m.filename.endsWith('.gguf')?'gguf':'standard')===format));
@@ -52,7 +52,7 @@
  }
  async function refresh(){
   if(loading)return;loading=true;
-  try{catalog=await api('/models/catalog');jobs=catalog.jobs||[];redraw();}
+  try{catalog=await api('/models/catalog');jobs=catalog.jobs||[];redraw();document.dispatchEvent(new Event('swap-adapter-update'));}
   catch(error){document.querySelectorAll('.model-download-state').forEach(el=>el.textContent=error.message);}
   finally{loading=false;}
  }
@@ -70,10 +70,10 @@
    primary.innerHTML=(window.DirectorIcons?.download||'')+`<span>${job?.status==='paused'?'Resume download':job?.status==='failed'?'Retry download':'Download'}${m?' · '+size(m.size):''}</span>`;
    cancel.hidden=!job||!['queued','downloading'].includes(job.status);
    progress.hidden=!job||!active.has(job.status);progress.value=(job?.received||0)/(job?.total||1);
-   state.textContent=installed?'Installed':job?.status==='verifying'?'Checking SHA-256…':job?.status==='queued'?'Waiting to download…':job?.status==='downloading'?`${Math.floor((job.received||0)/job.total*100)}% · ${size(job.received)} / ${size(job.total)}`:job?.error||m?.download_error||m?.note||'';
+   state.textContent=installed?'':job?.status==='verifying'?'Checking SHA-256…':job?.status==='queued'?'Waiting to download…':job?.status==='downloading'?`${Math.floor((job.received||0)/job.total*100)}% · ${size(job.received)} / ${size(job.total)}`:job?.error||m?.download_error||'';
    source.hidden=!m;if(m){source.href=m.source;source.textContent=`${m.unofficial?'Unofficial · ':''}${m.repo} ↗`;}
   }
-  primary.onclick=()=>safe(async()=>{const m=entry(scope,role,select.value);if(!m)return;const result=await api('/models/downloads','POST',{id:m.id});jobs=jobs.filter(x=>x.id!==m.id);jobs.push(result);update();});
+  primary.onclick=()=>safe(async()=>{const m=entry(scope,role,select.value);if(!m)return;if(scope==='video')await ensureSwap();const result=await api('/models/downloads','POST',{id:m.id});jobs=jobs.filter(x=>x.id!==m.id);jobs.push(result);update();});
   cancel.onclick=()=>safe(async()=>{const m=entry(scope,role,select.value);await api('/models/downloads/'+encodeURIComponent(m.id)+'/cancel','POST',{});await poll();});
   select.addEventListener('change',update);actions.append(primary,cancel,state);box.append(actions,progress);
   const linkBox=document.getElementById(scope==='qwen21'?'model-links':scope==='video'?'video-model-links':'shared-enhancer-links');
@@ -83,11 +83,14 @@
   if(!document.getElementById('models-dialog')?.open&&!jobs.some(j=>active.has(j.status)))return;
   try{
    const next=(await api('/models/downloads')).jobs;
-   const installed=next.some(j=>j.status==='installed'&&jobs.find(old=>old.id===j.id)?.status!=='installed');jobs=next;
+   const installed=next.some(j=>j.status==='installed'&&jobs.find(old=>old.id===j.id)?.status!=='installed');jobs=next;document.dispatchEvent(new Event('swap-adapter-update'));
    document.querySelectorAll('.model-file').forEach(box=>box._downloadUpdate?.());
-   if(installed){config=await api('/config');populateWorkflows();await refresh();toast('Model installed. Ready to select.');}
+   if(installed){config=await api('/config');populateWorkflows();await refresh();document.dispatchEvent(new Event('swap-adapter-update'));toast('Model installed. Ready to select.');}
   }catch{}
  }
- window.DirectorModelDownloads={options,decorate,unavailable,formatTabs,sharedValue,renderShared,preset:file=>catalog.models.find(m=>m.role==='diffusion'&&m.filename===basename(file))?.scope==='omni'?'fast-omni':null,refresh};
+ const swapId='h3-character-swap-v15';
+ function swapStatus(){const model=catalog.models.find(m=>m.id===swapId),job=jobs.find(j=>j.id===swapId),listed=(config?.video?.loras?.files||[]).some(file=>basename(file)==='h3_character_swap_v1.5.safetensors');return {installed:Boolean(listed||model?.installed||job?.status==='installed'),model,job,error:model?.download_error||job?.error||''};}
+ async function ensureSwap(retry=false){let status=swapStatus();if(status.installed||swapStarting||!retry&&swapAttempted)return status;if(!status.model)return status;swapAttempted=true;if(status.error&&!retry)return status;swapStarting=true;try{const result=await api('/models/downloads','POST',{id:swapId});jobs=jobs.filter(j=>j.id!==swapId);jobs.push(result);document.dispatchEvent(new Event('swap-adapter-update'));return swapStatus();}catch(error){jobs=jobs.filter(j=>j.id!==swapId);jobs.push({id:swapId,status:'failed',error:error.message});return swapStatus();}finally{swapStarting=false;}}
+ window.DirectorModelDownloads={swapStatus,ensureSwap,options,decorate,unavailable,formatTabs,sharedValue,renderShared,preset:file=>catalog.models.find(m=>m.role==='diffusion'&&m.filename===basename(file))?.scope==='omni'?'fast-omni':null,refresh};
  document.addEventListener('DOMContentLoaded',()=>{setupShared();refresh();for(const id of ['refresh-models','video-refresh-models'])document.getElementById(id)?.addEventListener('click',refresh);setInterval(poll,2000);});
 })();

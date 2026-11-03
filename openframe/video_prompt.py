@@ -125,6 +125,31 @@ def availability(nodes):
                 vision=all(key in nodes for key in ('BatchImagesNode','ResizeAndPadImage')))
 
 
+def attach_swap_appearances(graph,prompt,saved,nodes):
+    """Bounded visual captions; never rewrite the source-person assignment or action."""
+    status=availability(nodes or {});selected=saved.get('enhancer_model') or status['default']
+    if not status['ready'] or not status['vision'] or selected not in status['files']:return False
+    refs=saved.get('reference_ids',[]);mapping=list(saved.get('swap_people_map',{}).values());previous=None
+    graph['dc_swap_look_clip']=dict(class_type='CLIPLoader',inputs=dict(clip_name=selected,type='stable_diffusion',device='default'))
+    for i,role in enumerate(saved.get('swap_roles',[])):
+        if role!='character' or f'h3_reference_{i}' not in graph:continue
+        label=f'<Subject {mapping.index(refs[i])+1}>' if refs[i] in mapping else f'<Picture {i+1}>'
+        key=f'dc_swap_look_{i}'
+        graph[key+'_fit']=dict(class_type='ResizeAndPadImage',inputs=dict(image=[f'h3_reference_{i}',0],target_width=512,target_height=512,padding_color='black',interpolation='area'))
+        graph[key]=dict(class_type='TextGenerate',_meta=dict(title=f'Describing replacement character {i+1}'),inputs=dict(clip=['dc_swap_look_clip',0],image=[key+'_fit',0],prompt='Describe only this character appearance in 25–45 English words: build, skin, face, hair, distinctive features, clothing colors and accessories. Preserve exaggerated anatomy. Ignore the studio, background, pose and camera. Do not describe actions or invent features. Output one short description only.',max_length=128,sampling_mode='off',thinking=False,use_default_template=True,mtp='off'))
+        graph[key+'_clean']=dict(class_type='RegexReplace',inputs=dict(string=[key,0],regex_pattern=THINKING_PATTERN,replace='',case_insensitive=True,multiline=False,dotall=True,count=0))
+        graph[key+'_trim']=dict(class_type='StringTrim',inputs=dict(string=[key+'_clean',0],mode='Both'))
+        graph[key+'_bad']=dict(class_type='RegexMatch',inputs=dict(string=[key+'_trim',0],regex_pattern=UNUSABLE_CAPTION,case_insensitive=True,multiline=False,dotall=False))
+        graph[key+'_safe']=dict(class_type='ComfySwitchNode',inputs=dict(switch=[key+'_bad',0],on_true='Use the complete visible appearance in the reference image.',on_false=[key+'_trim',0]))
+        graph[key+'_label']=dict(class_type='StringConcatenate',inputs=dict(string_a=f'{label} appearance from <Picture {i+1}>: ',string_b=[key+'_safe',0],delimiter=''))
+        graph[key+'_join']=dict(class_type='StringConcatenate',inputs=dict(string_a=previous or '',string_b=[key+'_label',0],delimiter='\n'))
+        previous=[key+'_join',0]
+    if not previous:return False
+    graph['dc_swap_compact_prompt']=dict(class_type='StringConcatenate',inputs=dict(string_a=previous,string_b=prompt,delimiter='\n\n'))
+    graph['136']['inputs']['prompt']=['dc_swap_compact_prompt',0]
+    graph['dc_enhanced_preview']=dict(class_type='PreviewAny',inputs=dict(source=['dc_swap_compact_prompt',0]))
+    return True
+
 def attach(graph,prompt,selected,seed,duration,nodes,image_nodes=()):
     status=availability(nodes)
     if not status['ready'] or selected not in status['files']:

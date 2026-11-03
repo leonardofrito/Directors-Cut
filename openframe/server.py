@@ -26,8 +26,8 @@ from .asset_presets import ASSET_CATEGORIES, validate_choices, asset_prompt, pre
 from . import video
 from .model_install import import_video_file
 from . import model_downloads, engine_config, engine_connection
-from . import reference_uploads, motion_reference, audio_reference, project_cover, edit_presets, rtx_upscale
-from . import app_control, node_setup, sequence, examples, timeline
+from . import character_swap, reference_uploads, motion_reference, audio_reference, project_cover, edit_presets, rtx_upscale
+from . import app_control, node_setup, sequence, examples, timeline, swap_cuts, swap_people
 from .paths import DATA_ROOT
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -77,6 +77,7 @@ async def errors(request, handler):
 
 class Studio:
     def __init__(self):
+        self.people = swap_people.People(self)
         engine_config.apply_environment(engine_config.current())
         self.connection = engine_connection.Connection()
         self.connection_changing = False
@@ -138,7 +139,7 @@ class Studio:
                         current_draft['cancel_requested'] = False
                     self.store.save(current)
                 self.progress[draft_id] = {**self.progress.get(draft_id, {}), **changes}
-                durable = {k: v for k, v in changes.items() if k in ('job_id', 'status', 'error', 'enhanced_prompt', 'full_prompt', 'prompt_note', 'enhancer_output', 'applied_output_audio_id', 'audio_applied_at')}
+                durable = {k: v for k, v in changes.items() if k in ('job_id', 'status', 'error', 'enhanced_prompt', 'full_prompt', 'prompt_note', 'enhancer_output', 'applied_output_audio_id', 'audio_applied_at', 'swap_segments')}
                 if any(current_draft.get(k) != v for k, v in durable.items()):
                     current_draft.update(durable)
                     self.store.save(current)
@@ -152,7 +153,13 @@ class Studio:
                 graph_path = self.store.file(project_id, draft['workflow'])
                 graph = json.loads(graph_path.read_text(encoding='utf-8'))
                 await update(status='submitting' if not draft.get('job_id') else 'running')
-                await self.provider.generate(graph, target, update, draft.get('job_id'))
+                if draft.get('swap_segments'):
+                    await swap_cuts.generate(self, project_id, shot_id, draft, update)
+                else:
+                    await self.provider.generate(graph, target, update, draft.get('job_id'))
+                if not draft.get('swap_segments') and draft.get('settings', {}).get('studio_app') == character_swap.APP:
+                    await update(status='downloading', stage='Restoring source audio', sampling=False)
+                    await character_swap.finish(target, self.store.file(project_id, draft['settings']['swap_prepared']['file']), draft['settings'])
                 if draft.get('settings', {}).get('output_audio_id'):
                     await update(status='downloading', stage='Applying final audio', sampling=False)
                     ref = draft['settings']['output_audio']
@@ -178,7 +185,7 @@ class Studio:
                     self.queue_serial = max(self.queue_serial, d.get('queue_order', 0))
                     if d['status'] not in ACTIVE:
                         continue
-                    if d['status'] != 'queued' and not d.get('job_id'):
+                    if d['status'] != 'queued' and not d.get('job_id') and not d.get('swap_segments'):
                         d.update(status='failed', error='Submission was interrupted. Check the ComfyUI queue before regenerating.')
                         changed = True
                     else:
@@ -201,6 +208,7 @@ class Studio:
         yield
         worker.cancel()
         await asyncio.gather(worker, return_exceptions=True)
+        await self.people.close()
         await self.sequence_exports.close()
         await self.node_setup.close()
         await self.provider.close()
@@ -219,6 +227,7 @@ class Studio:
                     items.append(dict(id=d['id'], project_id=p['id'], project_name=p['name'], shot_id=s['id'],
                                       title=settings.get('title', s['title']) + (' Â· RTX Upscale' if d.get('postprocess', {}).get('type') == 'rtx-upscale' else ''), take=d.get('number', index + 1),
                                       status=d['status'], progress=d.get('progress', 0), stage=d.get('stage', ''),
+                                      sampling=d.get('sampling', False), sampling_step=d.get('sampling_step'), sampling_steps=d.get('sampling_steps'), current_node=d.get('current_node', ''), node_type=d.get('node_type', ''), node_label=d.get('node_label', ''), progress_updated_at=d.get('progress_updated_at', ''),
                                       created_at=d.get('created_at', ''), queue_order=d.get('queue_order', 0), workflow_id=settings.get('workflow_id', 'qwen21'),
                                       seed=settings.get('seed'), ratio=settings.get('ratio', ''),
                                       can_cancel=d['status'] == 'queued' and not d.get('job_id')))
@@ -309,8 +318,8 @@ class Studio:
             return web.json_response([dict(id=p['id'], name=p['name'], updated_at=p['updated_at'],
                 cover_image=p.get('cover_image'), cover_revision=p.get('cover_revision'),
                 asset_count=sum(s.get('mode') == 'asset' for s in p['shots']),
-                shot_count=sum(s.get('mode') == 'video' for s in p['shots'])) for p in self.store.list()])
-        return web.json_response(self.store.list())
+                shot_count=sum(s.get('mode') == 'video' and s.get('studio_app') != character_swap.APP for s in p['shots'])) for p in self.store.list() if not p.get('system_workspace')])
+        return web.json_response([p for p in self.store.list() if not p.get('system_workspace')])
 
     async def project(self, request):
         p = self.store.load(request.match_info['project'])
@@ -603,6 +612,8 @@ class Studio:
             self.store.save(p)
             return web.json_response(p)
         data = await request.json()
+        if s.get('studio_app') == character_swap.APP:
+            data['studio_app'] = character_swap.APP
         settings = video.settings(data) if s.get('mode') == 'video' else self.settings(data)
         settings['mode'] = s.get('mode', 'storyboard')
         s.update(settings)
@@ -614,6 +625,31 @@ class Studio:
 
     async def attach_project_cover(self, request):
         return web.json_response(await project_cover.attach(request,self.store),status=201)
+
+    async def board_thumbnail(self, request):
+        from .board import thumbnail
+        return await thumbnail(request, self.store)
+
+    async def swap_session(self, request):
+        lock = request.app.setdefault('swap_session_lock', asyncio.Lock())
+        async with lock:
+            return web.json_response(character_swap.session(self.store))
+
+    async def swap_assets(self, request):
+        if request.method == 'GET':
+            return web.json_response(character_swap.all_assets(self.store))
+        data = await request.json()
+        lock = request.app.setdefault('swap_session_lock', asyncio.Lock())
+        async with lock:
+            return web.json_response(character_swap.select_asset(self.store, data['source_project'], data['asset_id']))
+
+    async def swap_videos(self, request):
+        if request.method == 'GET':
+            return web.json_response(character_swap.generated_videos(self.store))
+        return web.json_response(await character_swap.choose_source(self.store, await request.json()))
+
+    async def attach_swap_source(self, request):
+        return web.json_response(await character_swap.attach(request, self.store), status=201)
 
     async def attach_motion_reference(self, request):
         return web.json_response(await motion_reference.attach(request, self.store), status=201)
@@ -647,6 +683,8 @@ class Studio:
             return web.json_response(project)
 
     async def generate(self, request):
+        if self.people.running:
+            raise ValueError('Wait for person identification to finish.')
         if self.node_setup.running:
             raise ValueError('Wait until workflow node installation finishes before generating.')
         if self.connection_changing:
@@ -655,7 +693,13 @@ class Studio:
         initial_project = self.store.load(request.match_info['project'])
         initial_shot = self.store.shot(initial_project, request.match_info['shot'])
         is_video = initial_shot.get('mode') == 'video'
+        if initial_shot.get('studio_app') == character_swap.APP:
+            data['studio_app'] = character_swap.APP
         settings = video.settings(data) if is_video else self.settings(data)
+        seed_mode=data.get('seed_mode','random' if settings['seed']==-1 else 'fixed')
+        if seed_mode not in ('fixed','increment','decrement','random'):raise ValueError('Invalid seed mode.')
+        settings['seed_mode']=seed_mode
+        if seed_mode=='random':settings['seed']=-1
         count = data.get('count', 1)
         if isinstance(count, bool) or not isinstance(count, int) or not 1 <= count <= 16:
             raise ValueError('Choose between 1 and 16 takes per queue submission.')
@@ -674,7 +718,11 @@ class Studio:
         settings['mode'] = s.get('mode', 'storyboard')
         if not settings['prompt'] and not (not is_video and (asset_prompt(settings) or (settings.get('edit_source') and settings.get('edit_preset')))):
             raise ValueError('Describe your shot or choose asset details first.')
+        if settings.get('studio_app') == character_swap.APP:
+            character_swap.resolve(p, settings, self.store)
         references = resolve_references(p, settings)
+        if settings.get('studio_app') == character_swap.APP and len(references) != len(settings['reference_ids']):
+            raise ValueError('Choose individual character/accessory images, not reference groups.')
         if not is_video:
             references += reference_uploads.resolve(p,settings)
             if len(references)>10:raise ValueError('Use up to 10 reference images.')
@@ -690,7 +738,21 @@ class Studio:
             raise ValueError('Choose up to 9 video image references.')
         uploaded = await self.upload_references(p, references) if references else []
         uploaded_motion = None
-        if is_video and (motion := motion_reference.resolve(p, settings)):
+        swap_prepared = None
+        swap_parts = []
+        swap_cast = None
+        if is_video and settings.get('studio_app') == character_swap.APP:
+            swap_prepared = await character_swap.prepare(self.store, p, settings)
+            swap_parts = await swap_cuts.prepare_parts(self.store, p, swap_prepared, settings)
+            if len(uploaded)<9 and not settings.get('swap_analysis_id'):
+                original_cast=await swap_cuts.cast_map(self.store,p,swap_prepared)
+                swap_cast=(await self.upload_references(p,[original_cast]))[0]
+            for part in swap_parts:
+                part['uploaded'] = (await self.upload_references(p, [part]))[0]
+                if part.get('audio_file'):
+                    part['uploaded_audio'] = (await self.upload_references(p, [dict(id=part['id']+'-speech', file=part['audio_file'], media_type='audio')]))[0]
+            uploaded_motion = swap_parts[0]['uploaded']
+        elif is_video and (motion := motion_reference.resolve(p, settings)):
             uploaded_motion = (await self.upload_references(p, [{**motion, 'media_type': 'video'}]))[0]
         uploaded_audio = None
         final_audio = None
@@ -721,6 +783,8 @@ class Studio:
             snapshot = {**settings, 'model_files': dict(settings['model_files'])}
             if uploaded:
                 snapshot['references'] = uploaded
+            if swap_prepared:
+                snapshot['swap_prepared'] = swap_prepared
             if uploaded_motion:
                 snapshot['motion_reference'] = uploaded_motion
             if uploaded_audio:
@@ -732,7 +796,7 @@ class Studio:
                 while seed in seeds:
                     seed = secrets.randbelow(2**53)
             else:
-                seed = (settings['seed'] + offset) % (2**53)
+                seed = (settings['seed'] + (-offset if seed_mode=='decrement' else offset if seed_mode=='increment' else 0)) % (2**53)
             seeds.add(seed)
             snapshot['seed'] = seed
             number = len(s['drafts']) + offset + 1
@@ -742,6 +806,29 @@ class Studio:
             draft = dict(id=uuid.uuid4().hex, queue_order=self.queue_serial, number=number, status='queued', file=stem + ('.mp4' if is_video else '.png'),
                          workflow=stem + '.workflow.json', settings=snapshot, full_prompt=prompt, created_at=now(),
                          request_id=request_id, batch_index=offset + 1, batch_count=count)
+            if swap_parts:
+                draft['swap_segments'] = []
+                for part in swap_parts:
+                    child = {**snapshot, 'duration': part['generation_frames']/24,
+                             'seed': (seed+part['index']-1) % (2**53),
+                             'motion_reference': part['uploaded'], 'swap_source': {**snapshot['swap_source'], 'audio': False}}
+                    if part.get('uploaded_audio'):
+                        child['audio_reference'] = part['uploaded_audio']
+                    if settings.get('swap_analysis_id'):
+                        manifest=swap_people.selected_manifest(self.store,p['id'],settings)
+                        child['prompt']+='\nPer-shot cast placement:\n'+swap_people.position_text(self.store,p['id'],manifest,settings['swap_people_map'],part['start_frame'],part['end_frame'],settings['reference_ids'],False,compact=True)
+                    if swap_cast:
+                        original_number=len(uploaded)+1
+                        child['references']=[*uploaded,swap_cast]
+                        child['prompt'] += f'\n<Picture {original_number}> is the ORIGINAL source cast map before any replacements. Position descriptions in the user request identify people in this original cast map, not whoever happens to occupy that position in a later shot. Track each original person by their source face, hair and outfit when matching the replacement. This picture is only an identity map: follow <Video 1> for the current shot layout, viewpoint and motion, never the map picture composition. Do not retain a source face that the user asks to replace.'
+                    child['prompt'] += '\nTrack the same original performers throughout this cut; their screen positions may change.'
+                    child_graph, _ = video.build_graph(child, f'video/DirectorsCut/{p["id"]}/{s["id"]}/part{part["index"]:02}', nodes)
+                    prefix=stem+f'.part{part["index"]:02}'
+                    path=prefix+'.workflow.json'
+                    write_json(self.store.file(p['id'],path),child_graph)
+                    draft['swap_segments'].append(dict(index=part['index'],start_frame=part['start_frame'],end_frame=part['end_frame'],
+                        frames=part['frames'],generation_frames=part['generation_frames'],mask_file=part.get('mask_file'),composite=False,workflow=path,
+                        generated=prefix+'.generated.mp4',output=prefix+'.mp4',status='queued'))
             drafts.append(draft)
             workflows.append(graph)
         for draft, graph in zip(drafts, workflows):
@@ -797,6 +884,12 @@ class Studio:
             self.queue.put_nowait((pid, sid, draft['id']))
             return web.json_response(draft, status=201)
 
+    async def delete_swap_take(self, request):
+        p = self.store.load(request.match_info['project'])
+        s = self.store.shot(p, request.match_info['shot'])
+        self.store.hide_swap_take(p, s, request.match_info['draft'])
+        return web.json_response(p)
+
     async def approve(self, request):
         draft_id = (await request.json())['draft_id']
         p = self.store.load(request.match_info['project'])
@@ -823,7 +916,7 @@ class Studio:
 
     async def file(self, request):
         path = self.store.file(request.match_info['project'], request.match_info['file'])
-        if path.suffix not in ('.png', '.jpg', '.json', '.zip', '.mp4', '.otioz'):
+        if path.suffix not in ('.png', '.jpg', '.json', '.zip', '.mp4', '.otioz', '.wav'):
             raise web.HTTPForbidden()
         headers = {'Cache-Control': 'no-cache'}
         if request.query.get('download') == '1':
@@ -879,20 +972,33 @@ def create_app(shutdown_event=None):
     app.router.add_put('/api/projects/{project}/shots/{shot}', studio.shot)
     app.router.add_delete('/api/projects/{project}/shots/{shot}', studio.shot)
     app.router.add_post('/api/projects/{project}/shots/{shot}/references', studio.attach_reference_image)
+    app.router.add_get('/api/second-take/videos', studio.swap_videos)
+    app.router.add_post('/api/second-take/videos', studio.swap_videos)
+    app.router.add_post('/api/second-take/session', studio.swap_session)
+    app.router.add_get('/api/second-take/assets', studio.swap_assets)
+    app.router.add_post('/api/second-take/assets', studio.swap_assets)
+    app.router.add_post('/api/projects/{project}/shots/{shot}/swap-source', studio.attach_swap_source)
     app.router.add_post('/api/projects/{project}/shots/{shot}/motion-reference', studio.attach_motion_reference)
     app.router.add_post('/api/projects/{project}/shots/{shot}/audio/{kind:reference|output}', studio.attach_audio_reference)
     app.router.add_post('/api/projects/{project}/shots/{shot}/drafts/{draft}/soundtrack', studio.apply_soundtrack)
     app.router.add_post('/api/projects/{project}/shots/{shot}/generate', studio.generate)
+    app.router.add_post('/api/projects/{project}/shots/{shot}/people', swap_people.start)
+    app.router.add_get('/api/projects/{project}/people/{analysis}', swap_people.status)
+    app.router.add_post('/api/projects/{project}/people/{analysis}/cancel', swap_people.cancel)
     app.router.add_post('/api/projects/{project}/shots/{shot}/approve', studio.approve)
     app.router.add_post('/api/projects/{project}/shots/{shot}/drafts/{draft}/cancel', studio.cancel_queued)
+    app.router.add_delete('/api/projects/{project}/shots/{shot}/drafts/{draft}', studio.delete_swap_take)
     app.router.add_post('/api/projects/{project}/shots/{shot}/drafts/{draft}/rtx-upscale', studio.upscale_video)
+    app.router.add_post('/api/projects/{project}/shots/{shot}/drafts/{draft}/cuts/regenerate', swap_cuts.regenerate)
+    app.router.add_get('/api/projects/{project}/shots/{shot}/drafts/{draft}/cuts', swap_cuts.describe)
     app.router.add_post('/api/projects/{project}/export', studio.export)
     app.router.add_put('/api/projects/{project}/storyboard', studio.storyboard)
+    app.router.add_get('/api/projects/{project}/shots/{shot}/drafts/{draft}/thumbnail', studio.board_thumbnail)
     app.router.add_get('/files/{project}/{file:.*}', studio.file)
     async def static(request):
         return web.FileResponse(ROOT / 'web' / request.match_info.get('asset', 'index.html'))
     app.router.add_get('/', static)
-    app.router.add_get('/{asset:app.js|player.js|video.js|video-previews.js|timeline.js|tutorial.js|workspace-nav.js|dropdowns.js|style.css|icons.js|library.js|polish.js|polish.css|motion.js|motion.css|model-downloads.js|engine-settings.js|node-setup.js}', static)
+    app.router.add_get('/{asset:app.js|player.js|video.js|video-previews.js|board.js|board.css|apps.js|swap.js|swap-people.js|timeline.js|workspace-nav.js|dropdowns.js|style.css|icons.js|library.js|polish.js|polish.css|motion.js|motion.css|model-downloads.js|engine-settings.js|node-setup.js}', static)
     app.router.add_static('/assets', ROOT / 'web/assets')
     return app
 

@@ -16,7 +16,7 @@ from .motion_reference import ffmpeg_path
 
 
 def video_shots(project):
-    return [s for s in project['shots'] if s.get('mode') == 'video']
+    return [s for s in project['shots'] if s.get('mode') == 'video' and s.get('studio_app') != 'second-take']
 
 
 def ordered_take(shot):
@@ -30,7 +30,7 @@ def reorder(project, ids):
         raise ValueError('The shot list changed. Refresh the Library and reorder again.')
     mapping = {s['id']: s for s in existing}
     positions = iter(ids)
-    project['shots'] = [mapping[next(positions)] if s.get('mode') == 'video' else s for s in project['shots']]
+    project['shots'] = [mapping[next(positions)] if s.get('mode') == 'video' and s.get('studio_app') != 'second-take' else s for s in project['shots']]
 
 
 def safe_name(name):

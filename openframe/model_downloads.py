@@ -14,12 +14,12 @@ def model_root():
 
 def destination(row,root=None):
  root=Path(root or model_root()).resolve();folder=root/row['folder'];target=(folder/row['filename']).resolve()
- if not target.is_relative_to(folder.resolve()) or Path(row['filename']).name!=row['filename'] or row['folder'] not in ('diffusion_models','text_encoders','vae','loras'):
+ if not target.is_relative_to(folder.resolve()) or Path(row['filename']).name!=row['filename'] or row['folder'] not in ('diffusion_models','text_encoders','vae','loras','checkpoints'):
   raise ValueError('Invalid model destination.')
  return target
 
 def installed(row,nodes):
- kind,field={'diffusion_models':('UNETLoader','unet_name'),'text_encoders':('CLIPLoader','clip_name'),'vae':('VAELoader','vae_name'),'loras':('LoraLoaderModelOnly','lora_name')}[row['folder']]
+ kind,field={'diffusion_models':('UNETLoader','unet_name'),'text_encoders':('CLIPLoader','clip_name'),'vae':('VAELoader','vae_name'),'loras':('LoraLoaderModelOnly','lora_name'),'checkpoints':('CheckpointLoaderSimple','ckpt_name')}[row['folder']]
  files=names(nodes,kind,field)
  if row['folder']=='diffusion_models':files+=names(nodes,'UnetLoaderGGUF',field)
  if row['folder']=='text_encoders':files+=names(nodes,'CLIPLoaderGGUF',field)

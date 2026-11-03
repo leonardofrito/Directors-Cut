@@ -1,6 +1,7 @@
 """Official Comfy SDK adapter. All inference stays on local ComfyUI."""
 import asyncio
 import math
+from datetime import datetime, timezone
 import os
 
 from comfy_sdk import AsyncComfy
@@ -119,6 +120,22 @@ def build_graph(settings, prefix, nodes=None):
     return graph, prompt
 
 
+def progress_fields(event, graph):
+    node = graph.get(str(event.current_node), {})
+    kind = node.get('class_type', '')
+    sampling = ('sampler' in kind.lower() and not kind.endswith(('Select', 'Selector'))) or (not event.current_node and 'sampl' in (event.message or '').lower())
+    label = node.get('_meta', {}).get('title') or kind
+    message = event.message or ''
+    if not message or message.lower() in ('processing', 'running', 'executing'):
+        message = 'Sampling' if sampling else label or 'Processing'
+    changes = dict(progress=event.value, stage=message, sampling=bool(sampling), current_node=str(event.current_node or ''), node_type=kind, node_label=label, progress_updated_at=datetime.now(timezone.utc).isoformat())
+    if sampling and event.step is not None and event.steps:
+        changes.update(sampling_step=event.step, sampling_steps=event.steps)
+    elif not sampling:
+        changes.update(sampling_step=None, sampling_steps=None)
+    return changes
+
+
 class GenerationCancelled(Exception):
     pass
 
@@ -141,12 +158,7 @@ class ComfyProvider:
             try:
                 async for event in job.events():
                     if isinstance(event, Progress):
-                        kind = graph.get(str(event.current_node), {}).get('class_type', '')
-                        sampling = (kind.startswith(('KSampler', 'SamplerCustom')) or
-                                    not event.current_node and 'sampl' in (event.message or '').lower())
-                        changes = dict(progress=event.value, stage=event.message or ('Sampling' if sampling else 'Processing'), sampling=sampling)
-                        if sampling and event.step is not None and event.steps:
-                            changes.update(sampling_step=event.step, sampling_steps=event.steps)
+                        changes = progress_fields(event, graph)
                         await update(**changes)
             except Exception:
                 pass  # Polling below continues if the optional event stream fails.

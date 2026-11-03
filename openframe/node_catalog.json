@@ -47,5 +47,19 @@
       "SelfLiftH3Sampler"
     ],
     "folder": "comfyui-SelfLift"
+  },
+  {
+    "id": "swap-tracking",
+    "repo": "D3voz/comfyui-h3-oneclick-swap",
+    "revision": "e44a56e92920000e675d14be484aea0d7498d63e",
+    "url": "https://codeload.github.com/D3voz/comfyui-h3-oneclick-swap/zip/e44a56e92920000e675d14be484aea0d7498d63e",
+    "size": 47511,
+    "sha256": "6d9783d8600ab531d121cf350440edbcdca97b00ad0fa744406a0b0efcf4e656",
+    "nodes": [
+      "H3TrackCrops",
+      "H3TrackRoles",
+      "H3MontagePeople"
+    ],
+    "folder": "comfyui-h3-oneclick-swap"
   }
 ]

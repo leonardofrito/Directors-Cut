@@ -28,7 +28,7 @@
     // Encoder/model-loading progress is per-node, not image-generation progress.
     if(!d.sampling)return null;
     if(d.sampling&&Number(d.sampling_steps)>0)return Math.max(0,Math.min(1,Number(d.sampling_step||0)/Number(d.sampling_steps)));
-    return Number(d.progress)>0?Math.max(0,Math.min(1,Number(d.progress))):null;
+    return null; // No sampler step count: a per-node graph fraction is not sampling progress.
   }
   function reflectProgress(root,d){
     const task=String(d.id||'')+':'+String(d.job_id||'');

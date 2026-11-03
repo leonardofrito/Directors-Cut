@@ -1,6 +1,6 @@
 # 0.1.0-rc.7
 
-- Bundled Bank of Ideas example with 14 approved shots and 12 references, plus an optional character-to-video tutorial. Opening the demo preserves your previous edits; no generation starts automatically.
+- Bundled Bank of Ideas example with 14 approved shots and 12 references. Opening the demo preserves your previous edits; no generation starts automatically.
 - Library shot ordering, sequence playback, and a non-destructive V1/V2/A1/A2 timeline with trims, split, independent audio offsets, undo/redo and autosave. Export MP4 or an OTIOZ media package for Resolve 18.5+.
 - Silent looping camera-movement, framing, pacing and optical previews. Framing, Movement, Pacing and Lens display two cards per row. Aperture and focal length retain sliders with full-width looping previews above them.
 - Updated optical examples from the V4 comparisons. Removed Video lighting, Camera Type, Sensor and Halation Vintage options; historical takes are preserved.

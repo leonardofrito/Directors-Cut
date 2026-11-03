@@ -6,7 +6,7 @@ from openframe.version import VERSION
 OUTPUT=ROOT/'release'/VERSION
 STAGE=ROOT/'.runtime/package-stage'
 
-PUBLIC_DOCS=['comfy-connection.md','model-downloads.md','model-setup.md','model-licenses.md','MiniMax-H3-LICENSE.txt','mcp.md','video-workspace.md','image-direction.md','asset-library.md','editing-prompts.md','competition-rules.md','release-readiness.md','windows-signing.md','publication-audit.md','sequence-and-examples.md','library-batch-actions.md']
+PUBLIC_DOCS=['comfy-connection.md','model-downloads.md','model-setup.md','model-licenses.md','MiniMax-H3-LICENSE.txt','mcp.md','video-workspace.md','image-direction.md','asset-library.md','editing-prompts.md','competition-rules.md','release-readiness.md','windows-signing.md','publication-audit.md','sequence-and-examples.md','second-take.md','board-workspaces.md','library-batch-actions.md']
 
 def sign_windows(executable,required=False,verify_only=False):
     thumbprint=os.environ.get('DIRECTORSCUT_SIGNING_THUMBPRINT','').strip()
@@ -98,7 +98,7 @@ def source_archive():
             if not (STAGE/'docs'/name).is_file():archive.write(ROOT/'docs'/name,'docs/'+name)
         for name in ['directors-cut-banner.png','directors-cut-assets.png','directors-cut-video.png']:
             archive.write(ROOT/'docs/images'/name,'docs/images/'+name)
-        for name in ['test_core.py','test_engine_connection.py','test_model_downloads.py','test_selflift_setup.py','test_release.py','test_windows_signing.py','test_library_batches.py']:
+        for name in ['test_core.py','test_engine_connection.py','test_model_downloads.py','test_selflift_setup.py','test_release.py','test_windows_signing.py','test_library_batches.py','test_swap_cuts.py']:
             path=ROOT/'tests'/name
             if path.exists():archive.write(path,'tests/'+name)
         for path in (ROOT/'packaging').glob('*'):

@@ -31,3 +31,5 @@ Director’s Cut puts **Edit Timeline**, **Preview Final Cut** and **Download** 
 ## Lightweight rendering
 
 The app reuses the existing generation controls and endpoints rather than maintaining separate editors for each view. Thumbnails load lazily; offscreen videos pause. Glass materials use static textures, gradients and small highlights. Motion respects reduced-motion preferences. Layout work does not require model inference.
+
+The thumbnail size slider stays in the lower-right corner. Full rows fill the available width; a sparse final row retains its natural card size. Second Take is independent of the selected project and highlights the current result with a stronger lime outline.

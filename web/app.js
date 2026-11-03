@@ -186,8 +186,9 @@ async function projectList() {
   return projects;
 }
 async function openProject(id) {
+  if(window.DirectorApps?.id==='second-take'&&!DirectorApps.switching)await DirectorApps.select('asset-creation');
   if(window.DirectorVideo?.active)await window.DirectorVideo.save();
-  if(project && currentShot()) await saveNotes(false);
+  if(project && currentShot() && !window.DirectorVideo?.active) await saveNotes(false);
   project=await api(`/projects/${id}`);
   shotId=lastWorkspaceItem(creationMode,visibleStudies())?.id; selectedDraft=null;
   if(!shotId) { const shot=await api(`/projects/${id}/shots`,'POST',{mode:creationMode}); project.shots.push(shot); shotId=shot.id; }
@@ -222,8 +223,10 @@ for(const kind of Object.keys(GENERATION_CHOICES))$('choose-'+kind).onclick=()=>
 document.addEventListener('click',event=>{if(!event.target.closest('.quick-generation'))closeGenerationChoices();});
 document.addEventListener('keydown',event=>{if(event.key==='Escape')closeGenerationChoices();});
 async function saveNotes(notify=true) {
-  if(!project || !currentShot()) return;
-  const saved=await api(`/projects/${project.id}/shots/${shotId}`,'PUT',settings());
+  if(!project || project.system_workspace || !currentShot()) return;
+  const pid=project.id,sid=shotId;
+  const saved=await api(`/projects/${pid}/shots/${sid}`,'PUT',settings());
+  if(project?.id!==pid||shotId!==sid||!currentShot())return;
   Object.assign(currentShot(),saved);
   if(notify) {render();toast(creationMode==='asset'?'Asset notes saved.':'Shot notes saved.');}
 }

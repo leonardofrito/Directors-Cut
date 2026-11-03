@@ -101,6 +101,32 @@ async def describe(request):
         parts.append({**part,'revision_id':revision_id(draft,part['index'],drafts),'prompt':editable_prompt(original_scene_prompt(graph) if removed is not None else cut_prompt(graph),handles),'versions':list(variants.values())})
     return web.json_response(dict(parts=parts,reference_ids=[ident for i,ident in enumerate(draft.get('settings',{}).get('reference_ids',[])) if i!=removed]))
 
+def rebuild_cut_recipe(graph, saved, engine, seed, prefix, nodes):
+    """Change the recipe while retaining this cut's uploaded conditioning media."""
+    from . import video
+    if not isinstance(engine,dict) or set(engine)-{'video_preset','model_files','selflift'}:
+        raise ValueError('Invalid cut engine settings.')
+    snapshot={**saved,**engine,'seed':seed,'prompt_enhancer':False}
+    checked=video.settings(snapshot)
+    snapshot.update({key:checked[key] for key in ('video_preset','model_files','model_format','selflift')})
+    encoder=graph['136']['inputs']
+    refs=[]
+    for key in sorted((k for k in encoder if k.startswith('ref_images.ref_image_')),key=lambda k:int(k.rsplit('_',1)[1])):
+        node=graph[encoder[key][0]]
+        refs.append({'comfy_image':node['inputs']['image']})
+    snapshot.update(studio_app='second-take',references=refs,prompt=cut_prompt(graph),
+                    duration=encoder['length']/24,swap_source={**snapshot.get('swap_source',{}),'audio':False})
+    if 'dc_motion_video' not in graph:raise ValueError('This cut has no saved source video. Generate a new swap first.')
+    snapshot['motion_reference']={'comfy_image':graph['dc_motion_video']['inputs']['file']}
+    snapshot.pop('audio_reference',None)
+    if 'dc_speech_audio' in graph:snapshot['audio_reference']={'comfy_image':graph['dc_speech_audio']['inputs']['audio']}
+    result,_=video.build_graph(snapshot,prefix,nodes)
+    # Keep exact cut geometry and padded frame count when changing only the engine.
+    for key in ('width','height','length'):
+        if key in encoder:result['136']['inputs'][key]=encoder[key]
+    return result,{key:checked[key] for key in ('video_preset','model_files','model_format','selflift')}
+
+
 async def regenerate(request):
     """Create a new take, borrowing no mutable files from the original take."""
     from aiohttp import web
@@ -145,6 +171,8 @@ async def regenerate(request):
     for key in ('job_id','cancel_requested','cancel_sent','error','audio_applied_at','applied_output_audio_id'):draft.pop(key,None)
     draft.update(id=uuid.uuid4().hex,number=number,status='queued',file=stem+'.mp4',workflow=stem+'.workflow.json',created_at=now(),request_id=request_id,regenerated_from=source['id'],regenerated_cut=None if finishing else index)
     draft['swap_segments']=copy.deepcopy(parts)
+    engine=data.get('engine') if not finishing else None
+    nodes=await studio.nodes() if engine is not None else None
     created=[]
     try:
         shutil.copy2(store.file(pid,source['workflow']),store.file(pid,draft['workflow']));created.append(draft['workflow'])
@@ -170,6 +198,10 @@ async def regenerate(request):
                 for key in list(graph):
                     if key.startswith('dc_swap_look_') or key in ('dc_swap_compact_prompt','dc_enhanced_preview'):
                         del graph[key]
+                if engine is not None:
+                    graph,recipe=rebuild_cut_recipe(graph,source['settings'],engine,seed,f'video/DirectorsCut/{pid}/{sid}/take{number}/part{i:02}',nodes)
+                    draft['settings'].update(recipe)
+                    part['engine']=copy.deepcopy(recipe)
                 if '92' in graph:graph['92']['inputs']['filename_prefix']=f'video/DirectorsCut/{pid}/{sid}/take{number}/part{i:02}'
                 part.update(status='queued',seed=seed)
                 part['composite']=False;part['mask_file']=None

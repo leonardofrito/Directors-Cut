@@ -132,14 +132,12 @@ def settings(data):
     start, end = data.get('swap_start', 0), data.get('swap_end', 5)
     if not isinstance(full, bool) or any(isinstance(x, bool) or not isinstance(x, (int, float)) or not math.isfinite(x) for x in (start, end)) or start < 0 or end <= start:
         raise ValueError('Choose a valid video range.')
-    base = {**data, 'duration': 5, 'video_preset': 'fast-omni', 'prompt': prompt(len(refs) == 2),
-            'selflift': True, 'prompt_enhancer': False, 'video_direction': {},
+    base = {**data, 'duration': 5, 'prompt': prompt(len(refs) == 2),
+            'selflift': data.get('selflift', True), 'prompt_enhancer': False, 'video_direction': {},
             'motion_reference_id': '', 'audio_reference_id': '', 'output_audio_id': '',
             'loras': [dict(name=LORA, strength=1, enabled=True)]}
     base.pop('studio_app', None)
     result = video.settings(base)
-    if result['video_preset'] != 'fast-omni':
-        raise ValueError('Second Take uses an Omni REF model. Select Omni in Engine settings.')
     analysis=data.get('swap_analysis_id','');mapping=data.get('swap_people_map',{})
     if not isinstance(analysis,str) or analysis and not re.fullmatch('[a-f0-9]{32}',analysis) or not isinstance(mapping,dict) or len(mapping)>MAX_REFERENCES or any(not isinstance(k,str) or not re.fullmatch('[pu][0-9]+',k) or v not in refs for k,v in mapping.items()):raise ValueError('Invalid person mapping.')
     # Old take snapshots may request neutralization. New generations always use

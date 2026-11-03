@@ -12,7 +12,9 @@
       if(DirectorVideo.active)await DirectorVideo.leave();else await saveNotes(false);
       if(next==='second-take'){
         previousProject=project?.system_workspace?previousProject:project?.id;
-        project=await api('/second-take/session','POST',{});
+        const session=await api('/second-take/session','POST',{});
+        if(session.system_workspace!=='second-take')throw new Error('Second Take workspace unavailable.');
+        project=session;shotId=null;selectedDraft=null;imageEdit=null;
       }else if(project?.system_workspace){
         project=null;shotId=null;selectedDraft=null;
         const list=await projectList(),restore=list.find(p=>p.id===previousProject)||list[0];
@@ -31,5 +33,5 @@
   document.addEventListener('click',event=>{if(!menu.contains(event.target))menu.open=false;});
   document.addEventListener('keydown',event=>{if(event.key==='Escape')menu.open=false;});
   document.body.dataset.studioApp=id;
-  window.DirectorApps={get id(){return id;},select};
+  window.DirectorApps={get id(){return id;},get switching(){return switching;},select};
 })();

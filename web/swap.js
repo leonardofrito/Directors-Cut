@@ -13,7 +13,7 @@
     reference_ids:(s.reference_ids||[]).filter((_,i)=>s.swap_roles?.[i]!=='background'),swap_roles:(s.swap_roles||((s.reference_ids||[]).map((_,i)=>i?'accessory':'character'))).filter(r=>r!=='background'),
     swap_analysis_id:s.swap_analysis_id||'',swap_people_map:{...(s.swap_people_map||{})},swap_neutralize:false,swap_direction_enabled:Boolean(s.swap_direction_enabled),swap_direction:s.swap_roles?.includes('background')?'':s.swap_direction||''};if(s.swap_roles?.includes('background'))state.swap_direction_enabled=false;}
   load({});
-  function capture(base){return {...base,...state,studio_app:'second-take',prompt:'Character swap',prompt_enhancer:false,selflift:true,video_direction:{},motion_reference_id:'',audio_reference_id:'',output_audio_id:'',loras:[{name:'h3_character_swap_v1.5.safetensors',enabled:true,strength:1}]};}
+  function capture(base){return {...base,...state,studio_app:'second-take',prompt:'Character swap',prompt_enhancer:false,video_direction:{},motion_reference_id:'',audio_reference_id:'',output_audio_id:'',loras:[{name:'h3_character_swap_v1.5.safetensors',enabled:true,strength:1}]};}
   const change=()=>DirectorVideo.swapChanged();
   function range(){const src=source();return {start:state.swap_full_duration?0:state.swap_start,end:state.swap_full_duration?(src?.duration||0):state.swap_end};}
   function ready(){const src=source(),r=range(),many=state.swap_roles.filter(r=>r==='character').length>1;

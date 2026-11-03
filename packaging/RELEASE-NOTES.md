@@ -1,3 +1,15 @@
+# 0.1.0-rc.8.2 — Interface hotfix
+
+- Thumbnail size control stays fixed in the lower-right corner across workspaces and cut views.
+- Gallery rows use the available width, with a small size tolerance to avoid unnecessary empty space.
+- Second Take keeps its own workspace when switching projects, without overwriting asset drafts.
+- New swaps and cut regenerations respect the selected engine models and SelfLift setting.
+- A stronger lime outline makes the selected Second Take result easier to identify.
+
+This hotfix keeps the existing generation workflow. Relay experiments, first-frame editing tests and their media are not included. Character replacement remains experimental; multiple-person identity and clothing consistency are not guaranteed.
+
+The Windows build is unsigned. Native macOS/Linux packages are not published; source instructions are available.
+
 # 0.1.0-rc.8.1 — Hotfix
 
 - Second Take RTX Upscale processes each source cut separately, then assembles one result with the completed video's audio. Other video workspaces retain their existing upscale path.

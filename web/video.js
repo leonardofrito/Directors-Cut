@@ -81,7 +81,6 @@
     $v('title').value=s.title;$v('prompt').value=swapMode()?(s.swap_direction||''):(s.prompt||'');$v('ratio').value=s.ratio||'16:9';
     $v('mp').value=String(s.megapixels||.5);$v('duration').value=String(s.duration||5);
     selectedVideoModels={...(!exact&&videoPreferences?videoPreferences.model_files:s.model_files)};
-    if(swapMode()){selectedVideoModels=DirectorSwap.models(s.model_files);$v('selflift').checked=true;}
     selectedVideoLoras=swapMode()?[{name:'h3_character_swap_v1.5.safetensors',strength:1,enabled:true}]:structuredClone((!exact&&videoPreferences?videoPreferences.loras:s.loras)||[]);
     videoDirection={...(s.video_direction||{})};if(videoDirection.lens==='Halation vintage')delete videoDirection.lens;delete videoDirection.camera;delete videoDirection.sensor;delete videoDirection.palette;delete videoDirection.lighting;delete videoDirection.era;delete videoDirection.genre;videoEnhancerModel=(!exact?(window.DirectorModelDownloads?.sharedValue()||videoPreferences?.enhancer_model):s.enhancer_model)||config?.video?.enhancer?.default||'';$v('enhancer-toggle').checked=Boolean(s.prompt_enhancer);
     $v('preset').value=(!exact&&videoPreferences?videoPreferences.video_preset:s.video_preset)||'fast-omni';normalizeModelRecipe();refs=[...(s.reference_ids||[])];mentionedIds=new Set();syncMentionReferences();dirty=false;pending=null;
@@ -109,7 +108,7 @@
     finally{creatingShot=false;render(project);}
   });
   async function enter(){
-    if(!project||active)return;await saveNotes(false);active=true;pid=null;render(project);
+    if(!project||active)return;if(!swapMode())await saveNotes(false);active=true;pid=null;render(project);
   }
   async function leave(){if(cutEdit)closeCuts();if(previewReturn)window.DirectorVideo.endPreview();clearDroppedAudio();await save();stopAdvancedMedia();$v('preview').querySelector('video')?.pause();active=false;$v('workspace').hidden=true;document.body.classList.remove('video-workspace-active');window.render();}
   function useAsset(asset){
@@ -267,7 +266,7 @@
     try{
       const seed=window.DirectorSeeds?.get('second-take')??-1,seed_mode=window.DirectorSeeds?.mode('second-take')||'random';
       if(project.shots.find(s=>s.id===context.sid)?.drafts.find(d=>d.id===context.id)?.postprocess?.type==='rtx-upscale')throw new Error('RTX cuts are processed automatically. Regenerate the original swap instead.');
-      const data={index,finish,prompt:finish?undefined:$v('prompt').value,choices:{...context.choices},seed},signature=JSON.stringify([context.baseId,data]);if(context.pending?.signature!==signature)context.pending={signature,id:submissionId()};
+      const data={index,finish,prompt:finish?undefined:$v('prompt').value,choices:{...context.choices},seed,...(!finish?{engine:{video_preset:$v('preset').value,model_files:{...selectedVideoModels},selflift:$v('selflift').checked}}:{})},signature=JSON.stringify([context.baseId,data]);if(context.pending?.signature!==signature)context.pending={signature,id:submissionId()};
       const result=await api(`/projects/${context.pid}/shots/${context.sid}/drafts/${context.baseId}/cuts/regenerate`,'POST',{...data,request_id:context.pending.id});context.pending=null;
       if(!finish)window.DirectorSeeds?.advance('second-take',1,{seed,seed_mode});
       if(!finish)(context.autoChoices||={})[index]=result.id;

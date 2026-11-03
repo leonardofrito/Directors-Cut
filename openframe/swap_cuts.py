@@ -43,9 +43,9 @@ def editable_prompt(text,handles):
 
 def compiled_prompt(text,handles):
     import re
-    bindings={handle:f'<Picture {i}>' for i,handle in enumerate(handles,1) if handle}
+    bindings={handle.casefold():f'<Picture {i}>' for i,handle in enumerate(handles,1) if handle}
     bindings.update(video1='<Video 1>',audio1='<Audio 1>')
-    return re.sub(r'(?<![\w@])@([A-Za-z0-9_]+)',lambda m:bindings.get(m[1],m[0]),text)
+    return re.sub(r'(?<![\w@])@([A-Za-z0-9_]+)',lambda m:bindings.get(m[1].casefold(),m[0]),text)
 
 def legacy_environment_index(draft):
     roles=draft.get('settings',{}).get('swap_roles',[])
@@ -125,6 +125,7 @@ async def regenerate(request):
         if part['status']!='succeeded' or (part['start_frame'],part['end_frame'])!=(parts[i-1]['start_frame'],parts[i-1]['end_frame']):raise ValueError('This cut version is not ready.')
         parts[i-1]=copy.deepcopy(part);parts[i-1]['revision_id']=revision_id(candidate,i,drafts)
     finishing=data.get('finish') is True
+    if not finishing and source.get('postprocess',{}).get('type')=='rtx-upscale':raise ValueError('Regenerate the original swap, then upscale its cuts again.')
     if not finishing and (type(index) is not int or not 1<=index<=len(parts)):raise ValueError('Choose a valid cut.')
     single_test=data.get('single_cut_test') is True
     if single_test and (finishing or index!=1):raise ValueError('The isolated test uses the opening cut only.')

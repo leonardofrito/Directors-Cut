@@ -179,7 +179,7 @@
       $v('download').hidden=true;$v('used-details').hidden=true;$v('output-info').textContent='MiniMax H3 Ref2VA';
     }
     const approved=Boolean(take&&take.id===current.approved?.draft_id);
-    $v('approve').disabled=swapMode()?take?.status!=='succeeded'||!take?.swap_segments?.length:take?.status!=='succeeded'||approved;
+    $v('approve').disabled=swapMode()?!take?.swap_segments?.length:take?.status!=='succeeded'||approved;
     $v('approve').innerHTML=(swapMode()?DirectorIcons.select:DirectorIcons.save)+'<span>'+(swapMode()?'View cuts':approved?'Approved':'Approve take')+'</span>';
     if(swapMode())$v('approve').removeAttribute('aria-pressed');else $v('approve').setAttribute('aria-pressed',String(approved));
     const hasUpscale=drafts.some(d=>d.postprocess?.source_draft_id===take?.id&&activeDraft(d));
@@ -213,7 +213,7 @@
     }finally{upscalingTake=null;render(project);}
   });
   $v('approve').onclick=()=>safe(async()=>{
-    const current=scene(),take=current?.drafts.find(d=>d.id===selected&&d.status==='succeeded');if(!take)return;
+    const current=scene(),take=current?.drafts.find(d=>d.id===selected&&(swapMode()||d.status==='succeeded'));if(!take)return;
     if(swapMode()){openSwapCuts(take);return;}
     const projectId=pid,shotId=current.id;$v('approve').disabled=true;
     try{const saved=await api(`/projects/${projectId}/shots/${shotId}/approve`,'POST',{draft_id:take.id});
@@ -224,44 +224,56 @@
   let cutEdit=null,cutBusy=false;
   const finishCuts=button('Join cuts','primary join-cuts-action',()=>safe(()=>submitCut(true)));finishCuts.innerHTML='<strong>Join Cuts</strong><span>Finish</span>';finishCuts.setAttribute('aria-label','Join Cuts, Finish');finishCuts.hidden=true;
   function cutParts(){return cutEdit?.parts||[];}
+  function cutRevisionStamp(context){return JSON.stringify((project?.shots.find(s=>s.id===context.sid)?.drafts||[]).map(d=>[d.id,d.status,d.deleted_at,(d.swap_segments||[]).map(p=>p.status)]));}
+  function refreshCutVersions(context){
+    const stamp=cutRevisionStamp(context);if(context.refreshing||context.versionStamp===stamp)return;context.refreshing=true;context.versionStamp=stamp;
+    api(`/projects/${context.pid}/shots/${context.sid}/drafts/${context.baseId}/cuts`).then(details=>{if(cutEdit!==context)return;context.parts=details.parts;
+      for(const [index,id] of Object.entries(context.autoChoices||{})){const ready=details.parts.find(p=>p.index===Number(index))?.versions.find(v=>v.draft_id===id&&v.status==='succeeded');if(ready){context.choices[index]=id;delete context.autoChoices[index];}}
+      window.DirectorBoard?.refreshCuts();
+    }).catch(error=>{context.error=error.message;}).finally(()=>{context.refreshing=false;});
+  }
   function showCutPrompt(index,version){
     if(!cutEdit)return;cutEdit.index=index;const part=cutParts().find(p=>p.index===index),chosen=version||part?.versions.find(v=>v.draft_id===cutEdit.choices[index])||part;
     if(version){cutEdit.choices[index]=version.draft_id;cutEdit.prompts[index]=version.prompt;}
     $v('prompt').value=cutEdit.prompts[index]??chosen?.prompt??'';renderPromptHighlights();syncCutEditor();window.DirectorBoard?.refreshCuts();
   }
   function selectCut(index){showCutPrompt(index);}
-  function chooseCutVersion(index,id){const version=cutParts().find(p=>p.index===index)?.versions.find(v=>v.revision_id===id);if(version?.status==='succeeded')showCutPrompt(index,version);}
-  function closeCuts(){cutEdit=null;$v('prompt').disabled=false;$v('prompt').value=window.DirectorSwap?.peopleState?.swap_direction||'';renderPromptHighlights();finishCuts.hidden=true;document.body.classList.remove('editing-swap-cuts');render(project);}
+  function chooseCutVersion(index,id){const version=cutParts().find(p=>p.index===index)?.versions.find(v=>v.revision_id===id);if(version?.status==='succeeded'){delete cutEdit.autoChoices?.[index];showCutPrompt(index,version);}}
+  function closeCuts(){$v('generate').hidden=false;cutEdit=null;$v('prompt').disabled=false;$v('prompt').value=window.DirectorSwap?.peopleState?.swap_direction||'';renderPromptHighlights();finishCuts.hidden=true;document.body.classList.remove('editing-swap-cuts');render(project);}
+  async function openCutsFor(shotId,takeId){await save();sceneId=shotId;const take=scene()?.drafts.find(d=>d.id===takeId);if(take?.swap_segments?.length)await openSwapCuts(take);}
   async function openSwapCuts(take){
     const projectId=pid,shotId=sceneId;await save();
     const details=await api(`/projects/${projectId}/shots/${shotId}/drafts/${take.id}/cuts`);
-    cutEdit={pid:projectId,sid:shotId,id:take.id,baseId:take.id,loadedId:take.id,index:1,parts:details.parts,references:details.reference_ids,
+    const byId=new Map(scene().drafts.map(d=>[d.id,d]));let root=take;while(root.regenerated_from&&byId.has(root.regenerated_from))root=byId.get(root.regenerated_from);const completed=root.status==='succeeded'?root:take;
+    cutEdit={pid:projectId,sid:shotId,id:take.id,baseId:completed.id,loadedId:take.id,index:1,parts:details.parts,references:details.reference_ids,autoChoices:{},
       prompts:Object.fromEntries(details.parts.map(p=>[p.index,p.prompt])),choices:Object.fromEntries(details.parts.map(p=>[p.index,p.versions.find(v=>v.revision_id===p.revision_id)?.draft_id||take.id]))};
+    cutEdit.versionStamp=cutRevisionStamp(cutEdit);
     window.DirectorVideo.endPreview();sceneId=shotId;selected=take.id;window.DirectorBoard.openCuts(shotId);selectCut(1);
   }
   function syncCutEditor(){
-    const enabled=Boolean(cutEdit&&swapMode()&&cutEdit.pid===pid);finishCuts.hidden=!enabled;document.body.classList.toggle('editing-swap-cuts',enabled);
+    const enabled=Boolean(cutEdit&&swapMode()&&cutEdit.pid===pid);finishCuts.hidden=!enabled||Boolean(project?.shots.find(s=>s.id===cutEdit?.sid)?.drafts.find(d=>d.id===cutEdit?.id)?.postprocess?.type==='rtx-upscale');document.body.classList.toggle('editing-swap-cuts',enabled);
     if(!enabled)return;
-    const take=project.shots.find(s=>s.id===cutEdit.sid)?.drafts.find(d=>d.id===cutEdit.id),busy=cutBusy||activeDraft(take||{});
+    const take=project.shots.find(s=>s.id===cutEdit.sid)?.drafts.find(d=>d.id===cutEdit.id),base=project.shots.find(s=>s.id===cutEdit.sid)?.drafts.find(d=>d.id===cutEdit.baseId),busy=cutBusy||base?.status!=='succeeded';
+    const rtx=take?.postprocess?.type==='rtx-upscale';$v('generate').hidden=rtx;
     $v('editor-heading').textContent='Cut '+cutEdit.index;$v('generate').innerHTML=DirectorIcons.plus+'<span>Generate Video</span>';$v('generate').disabled=busy;
-    finishCuts.disabled=busy;$v('prompt').disabled=busy;
+    finishCuts.disabled=busy||cutParts().some(p=>p.versions.some(v=>activeDraft(v)));$v('prompt').disabled=busy;
     const part=cutParts().find(p=>p.index===cutEdit.index);$v('size-value').textContent=(take?.settings?.megapixels||'')+' MP';$v('duration-value').textContent=part?(part.frames/24).toFixed(2)+'s':'';for(const key of ['size','duration','frame'])$v('choose-'+key).disabled=true;
     if(cutEdit.error){$v('status').textContent=cutEdit.error;$v('status').className='error';}
-    if(take?.status==='succeeded'&&cutEdit.loadedId!==take.id&&!cutEdit.refreshing){const context=cutEdit;context.refreshing=true;
-      api(`/projects/${context.pid}/shots/${context.sid}/drafts/${take.id}/cuts`).then(details=>{if(cutEdit!==context)return;context.parts=details.parts;context.loadedId=take.id;context.choices[take.regenerated_cut]=take.id;window.DirectorBoard?.refreshCuts();}).catch(error=>{context.error=error.message;}).finally(()=>context.refreshing=false);
-    }
+    refreshCutVersions(cutEdit);
     renderReferences(project);
   }
   async function submitCut(finish=false){
-    if(!cutEdit||cutBusy)return;const context=cutEdit;context.error='';cutBusy=true;syncCutEditor();
+    if(!cutEdit||cutBusy)return;const context=cutEdit,index=context.index;context.error='';cutBusy=true;syncCutEditor();
     try{
       const seed=window.DirectorSeeds?.get('second-take')??-1,seed_mode=window.DirectorSeeds?.mode('second-take')||'random';
-      const data={index:context.index,finish,prompt:finish?undefined:$v('prompt').value,choices:context.choices,seed},signature=JSON.stringify([context.baseId,data]);if(context.pending?.signature!==signature)context.pending={signature,id:submissionId()};
+      if(project.shots.find(s=>s.id===context.sid)?.drafts.find(d=>d.id===context.id)?.postprocess?.type==='rtx-upscale')throw new Error('RTX cuts are processed automatically. Regenerate the original swap instead.');
+      const data={index,finish,prompt:finish?undefined:$v('prompt').value,choices:{...context.choices},seed},signature=JSON.stringify([context.baseId,data]);if(context.pending?.signature!==signature)context.pending={signature,id:submissionId()};
       const result=await api(`/projects/${context.pid}/shots/${context.sid}/drafts/${context.baseId}/cuts/regenerate`,'POST',{...data,request_id:context.pending.id});context.pending=null;
       if(!finish)window.DirectorSeeds?.advance('second-take',1,{seed,seed_mode});
+      if(!finish)(context.autoChoices||={})[index]=result.id;
       context.id=result.id;project=await api(`/projects/${context.pid}`);selected=result.id;
       if(finish){closeCuts();window.DirectorBoard.closeCuts();toast('Joining selected cuts with the original audio.');}
-      else {render(project);toast('Cut '+context.index+' added to the queue.');}
+      else {render(project);toast('Cut '+index+' added to the queue.');}
       await refreshQueue();
     }catch(error){context.error=error.message;throw error;}finally{cutBusy=false;syncCutEditor();}
   }
@@ -788,8 +800,8 @@
   document.addEventListener('click',event=>{if(!event.target.closest('.video-quick-generation'))closeChoices();});
   document.addEventListener('keydown',event=>{if(event.key==='Escape'){closeChoices();}});
   document.getElementById('tab-video').onclick=()=>safe(enter);
-  document.addEventListener('keydown',event=>{if(!active||event.key!=='Enter'||!event.ctrlKey||event.isComposing||document.querySelector('dialog[open]'))return;event.preventDefault();event.stopImmediatePropagation();if(!event.repeat)safe(run);});
+  document.addEventListener('keydown',event=>{if(!active||event.key!=='Enter'||!event.ctrlKey||event.isComposing||document.querySelector('dialog[open]'))return;event.preventDefault();event.stopImmediatePropagation();if(!event.repeat)safe(()=>cutEdit&&swapMode()?submitCut(false):run());});
   function syncReferences(){const current=scene();if(!current)return;$v('prompt').value=current.prompt;refs=[...(current.reference_ids||[])];mentionedIds=new Set();syncMentionReferences();render(project);}
-  window.DirectorVideo={get cutEdit(){return cutEdit;},get finishCuts(){return finishCuts;},cutParts,chooseCutVersion,selectCut,closeCuts,async selectPreview(id,takeId){await save();if(!previewReturn)previewReturn={id:sceneId,selected,lastReady};sceneId=id;selected=takeId;lastReady=scene()?.drafts.filter(d=>d.status==='succeeded').at(-1)?.id;render(project);},endPreview(){if(previewReturn){const before=previewReturn;previewReturn=null;sceneId=before.id;selected=before.selected;lastReady=before.lastReady;render(project);}},workingSettings:capture,restoreWorking(snapshot){const current=scene();if(current){load({...current,...structuredClone(snapshot),id:current.id,title:current.title,drafts:current.drafts},true);changed();}},closeChoices,reuseSettings:reuseVideoTakeSettings,swapChanged:changed,get currentShot(){return scene();},get active(){return active;},enter,leave,render,useAsset,referenceIds,save,openPicker,renderSettings,syncReferences,selectShot:selectVideoShot,deleteShot:deleteVideoShot,deleteShots:deleteVideoShots,newShot:newScene};
+  window.DirectorVideo={openCutsFor,get cutEdit(){return cutEdit;},get finishCuts(){return finishCuts;},cutParts,chooseCutVersion,selectCut,closeCuts,async selectPreview(id,takeId){await save();if(!previewReturn)previewReturn={id:sceneId,selected,lastReady};sceneId=id;selected=takeId;lastReady=scene()?.drafts.filter(d=>d.status==='succeeded').at(-1)?.id;render(project);},endPreview(){if(previewReturn){const before=previewReturn;previewReturn=null;sceneId=before.id;selected=before.selected;lastReady=before.lastReady;render(project);}},workingSettings:capture,restoreWorking(snapshot){const current=scene();if(current){load({...current,...structuredClone(snapshot),id:current.id,title:current.title,drafts:current.drafts},true);changed();}},closeChoices,reuseSettings:reuseVideoTakeSettings,swapChanged:changed,get currentShot(){return scene();},get active(){return active;},enter,leave,render,useAsset,referenceIds,save,openPicker,renderSettings,syncReferences,selectShot:selectVideoShot,deleteShot:deleteVideoShot,deleteShots:deleteVideoShots,newShot:newScene};
 })();
 

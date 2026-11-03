@@ -308,7 +308,7 @@ class Studio:
                 online = True
         except Exception as exc:
             detail = str(exc)
-        return web.json_response(dict(hardware=engine_config.hardware(getattr(self,'engine_system_stats',{})),rtx_upscale=rtx_upscale.availability(nodes, devices), styles=list(STYLE), cameras=CAMERAS, ratios=list(RATIOS), lenses=list(OPTICS), lighting=list(LIGHTING), films=list(FILM), grades=list(GRADE), lens_types=list(LENS_TYPES), sensors=list(SENSORS), focal_lengths=FOCAL_LENGTHS, light_colors=list(LIGHT_COLORS), palettes=PALETTES, film_palettes=FILM_PALETTES, f_stops=F_STOPS, legacy_camera_defaults={key: legacy_camera({'lens': key}) for key in OPTICS},
+        return web.json_response(dict(second_take=dict(max_references=character_swap.MAX_REFERENCES,prompt_tail=character_swap.PROMPT_TAIL),hardware=engine_config.hardware(getattr(self,'engine_system_stats',{})),rtx_upscale=rtx_upscale.availability(nodes, devices), styles=list(STYLE), cameras=CAMERAS, ratios=list(RATIOS), lenses=list(OPTICS), lighting=list(LIGHTING), films=list(FILM), grades=list(GRADE), lens_types=list(LENS_TYPES), sensors=list(SENSORS), focal_lengths=FOCAL_LENGTHS, light_colors=list(LIGHT_COLORS), palettes=PALETTES, film_palettes=FILM_PALETTES, f_stops=F_STOPS, legacy_camera_defaults={key: legacy_camera({'lens': key}) for key in OPTICS},
             image_edit_presets=edit_presets.choices(), preset_hints={'style': STYLE, 'camera': FRAMING, 'lens_type': LENS_TYPES, 'sensor': SENSORS, 'lighting': LIGHTING, 'light_color': LIGHT_COLORS, 'film': FILM, 'grade': GRADE}, preview_generation_enabled=False, preview_images=preview_images(), asset_categories=ASSET_CATEGORIES, character_categories=CATEGORIES, enhancer=enhancer_availability(nodes, 'qwen21'), loras=lora_availability(nodes), video=video.availability(nodes, vram_total), workflows=describe(nodes), output_dir=str(self.store.root), online=online, detail=detail))
 
     async def projects(self, request):
@@ -863,12 +863,22 @@ class Studio:
             nodes, devices = await asyncio.gather(self.nodes(), self.gpu_devices())
             if not rtx_upscale.availability(nodes, devices)['ready']:
                 raise ValueError('RTX upscale requires a supported NVIDIA RTX GPU and the installed RTX Video Super Resolution node.')
-            uploaded = await self.upload_references(p, [dict(id='rtx_' + source_id, file=source['file'], media_type='video')])
-            # Reload after upload to preserve any concurrent renames, approvals or takes.
-            p, s, source = source_data()
-            number = len(s['drafts']) + 1
-            stem = f'shots/{sid}/draft_{number:03d}'
-            graph = rtx_upscale.build_graph(uploaded[0]['comfy_image'], f'video/DirectorsCut/{pid}/{sid}/RTX', nodes)
+            work_stem=f'shots/{sid}/rtx_{uuid.uuid4().hex}'
+            split_parts=[]
+            if s.get('studio_app')==character_swap.APP:
+                split_parts=await rtx_upscale.prepare_cuts(self.store,pid,source,work_stem)
+                for part in split_parts:
+                    uploaded=await self.upload_references(p,[part]);prefix=work_stem+f'.part{part["index"]:02}'
+                    part.update(workflow=prefix+'.workflow.json',output=prefix+'.mp4',generated=prefix+'.generated.mp4')
+                    write_json(self.store.file(pid,part['workflow']),rtx_upscale.build_graph(uploaded[0]['comfy_image'],f'video/DirectorsCut/{pid}/{sid}/RTX/part{part["index"]:02}',nodes))
+                graph=json.loads(self.store.file(pid,split_parts[0]['workflow']).read_text(encoding='utf-8'))
+            else:
+                uploaded=await self.upload_references(p,[dict(id='rtx_'+source_id,file=source['file'],media_type='video')])
+                graph=rtx_upscale.build_graph(uploaded[0]['comfy_image'],f'video/DirectorsCut/{pid}/{sid}/RTX',nodes)
+            # Keep edits and queued jobs created while the CPU inputs were prepared.
+            p,s,source=source_data()
+            number=max((d.get('number',0) for d in s['drafts']),default=0)+1
+            stem=f'shots/{sid}/draft_{number:03d}'
             snapshot = dict(source['settings'], title=s['title'], output_audio_id='')
             snapshot.pop('output_audio', None)  # Already present in the source video; do not apply twice.
             self.queue_serial += 1
@@ -876,6 +886,9 @@ class Studio:
                          status='queued', file=stem + '.mp4', workflow=stem + '.workflow.json',
                          settings=snapshot, full_prompt=source.get('full_prompt', snapshot.get('prompt', '')),
                          created_at=now(), postprocess=dict(type='rtx-upscale', scale=2, source_draft_id=source_id))
+            if split_parts:
+                draft['swap_segments']=split_parts
+                snapshot['swap_prepared']={'file':source['file']}
             for field in ('applied_output_audio_id', 'audio_applied_at'):
                 if field in source:
                     draft[field] = source[field]

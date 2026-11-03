@@ -1,3 +1,12 @@
+# 0.1.0-rc.8.1 — Hotfix
+
+- Second Take RTX Upscale processes each source cut separately, then assembles one result with the completed video's audio. Other video workspaces retain their existing upscale path.
+- Modular default swap prompt supports one to six references and explicitly preserves the original scene, lighting and camera. Automatic prompt expansion remains disabled. Custom directions are preserved.
+- Regenerated cuts stay grouped under their original video, including queued/running versions. Initial generations expose individual cut progress and completed previews. Additional cut revisions can be queued without waiting for the current revision.
+- Text-free continuous thumbnail scale control across all three workspaces, with saved per-workspace sizing.
+- Case-insensitive @reference binding in Second Take.
+- Windows remains unsigned. Native package checks and CPU fixtures do not certify RTX processing on physical hardware or character-swap fidelity.
+
 # 0.1.0-rc.8
 
 - Three canvas workspaces: Asset Creation, Director’s Cut and Second Take, with a shared floating video prompt, seed controls, glass materials and media player.

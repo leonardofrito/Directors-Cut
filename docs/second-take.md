@@ -26,4 +26,6 @@ Open a completed result and choose **View cuts**. A cut with one version activat
 
 This is generative video editing, not exact pixel replacement. Identities, wardrobe, expressions, mouth shapes and occlusions can drift. Source audio is retained; that does not guarantee accurate lip sync. Automatic cut detection and person tracking may need manual correction. Smaller resolutions and shorter clips are useful for evaluating a result before a larger render.
 
-Second Take is included in the rc.8 Windows executable and source package.
+Second Take is included in the rc.8.1 Windows executable and source package.
+
+RTX Upscale runs sequentially per cut and restores the completed source video’s audio when joining. The default prompt supports up to six references and preserves the original scene; custom prompts remain editable.

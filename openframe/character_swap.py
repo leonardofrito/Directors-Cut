@@ -13,6 +13,22 @@ from .motion_reference import MAX_VIDEO, run_ffmpeg
 APP = 'second-take'
 LORA = 'h3_character_swap_v1.5.safetensors'
 WORKSPACE = '_SecondTake'
+MAX_REFERENCES=6
+PROMPT_TAIL=("Preserve the original video's background, lighting, camera and performances throughout. "
+    "Use the reference images only for the characters; ignore their studio backgrounds. "
+    "Keep each replacement complete from the first frame to the last, without morphing or transitions.")
+
+def default_direction(project,refs,mapping=None,people=()):
+    assets={a['id']:a for a in project.get('assets',[])};lines=[]
+    pairs=list((mapping or {}).items()) or [(f'p{i+1}',ident) for i,ident in enumerate(refs)]
+    for person_id,ident in pairs:
+        asset=assets.get(ident)
+        if not asset:continue
+        person=next((p for p in people if p['id']==person_id),{})
+        label=re.sub(r'^<Subject\s*\d+>\s*[-:]?\s*','',person.get('label',''),flags=re.I).strip() if person.get('matched') else ''
+        label=label or ('selected person '+person_id.lstrip('pu'))
+        lines.append(f"Replace the original {label} in @video1 with @{asset['handle']}, including their face, hair, body and complete outfit.")
+    return '\n'.join([*lines,PROMPT_TAIL])
 
 
 def session(store):
@@ -96,8 +112,8 @@ def prompt(accessory=False):
 def settings(data):
     from . import video
     refs = data.get('reference_ids', [])
-    if not isinstance(refs, list) or not all(isinstance(r,str) for r in refs) or len(refs) > 9 or len(refs) != len(set(refs)):
-        raise ValueError('Choose up to nine character, product or clothing references.')
+    if not isinstance(refs, list) or not all(isinstance(r,str) for r in refs) or len(refs) > MAX_REFERENCES or len(refs) != len(set(refs)):
+        raise ValueError('Choose up to six character, product or clothing references.')
     roles=data.get('swap_roles', (['character']+['accessory']*(len(refs)-1)) if refs else [])
     enabled=data.get('swap_direction_enabled',False)
     direction=data.get('swap_direction','')
@@ -125,7 +141,7 @@ def settings(data):
     if result['video_preset'] != 'fast-omni':
         raise ValueError('Second Take uses an Omni REF model. Select Omni in Engine settings.')
     analysis=data.get('swap_analysis_id','');mapping=data.get('swap_people_map',{})
-    if not isinstance(analysis,str) or analysis and not re.fullmatch('[a-f0-9]{32}',analysis) or not isinstance(mapping,dict) or len(mapping)>8 or any(not isinstance(k,str) or not re.fullmatch('[pu][0-9]+',k) or v not in refs for k,v in mapping.items()):raise ValueError('Invalid person mapping.')
+    if not isinstance(analysis,str) or analysis and not re.fullmatch('[a-f0-9]{32}',analysis) or not isinstance(mapping,dict) or len(mapping)>MAX_REFERENCES or any(not isinstance(k,str) or not re.fullmatch('[pu][0-9]+',k) or v not in refs for k,v in mapping.items()):raise ValueError('Invalid person mapping.')
     # Old take snapshots may request neutralization. New generations always use
     # the original source video, including after Reuse Settings.
     result.update(swap_analysis_id=analysis,swap_people_map=mapping,swap_neutralize=False)
@@ -151,34 +167,18 @@ def resolve(project, settings, store=None):
     assets={a['id']:a for a in project.get('assets',[])}
     if any(ident not in assets or not assets[ident].get('file') for ident in refs):
         raise ValueError('A selected reference is no longer available.')
-    bindings={assets[ident]['handle']:f'<Picture {i+1}>' for i,ident in enumerate(refs)}
-    if settings['swap_direction_enabled'] and settings['swap_direction'].strip():
-        text=re.sub(r'(?<![\w@])@([a-zA-Z0-9_]+)',lambda m:'<Video 1>' if m[1]=='video1' else bindings.get(m[1],m[0]),settings['swap_direction'])
-    else:
-        first=next((i+1 for i,r in enumerate(roles) if r=='character'),1)
-        text=(f'Replace the main foreground person in <Video 1> with the character in <Picture {first}>. Preserve their reference face, hair, proportions and clothing. Follow the source performance. ' if 'character' in roles else 'Edit the matching items using the supplied product and clothing references. Preserve the original people and their identities. ')
-        if roles.count('character')>1:
-            identities=', '.join(f'<Picture {i+1}>' for i,r in enumerate(roles) if r=='character')
-            text=f'Use the distinct characters from {identities} to replace distinct people in <Video 1>. Keep reference identities separate; do not blend faces or duplicate one replacement across multiple bodies. Preserve each source performance and use the reference appearances and clothing. '
-        for i,role in enumerate(roles):
-            if role not in ('character','background'):text+=f'Use the {role} from <Picture {i+1}> on the selected person, preserving its design. '
-    lines=[f'<Picture {i+1}> supplies a visual reference for the replacement explicitly requested below; ignore its image background.' if settings['swap_direction_enabled'] and settings['swap_direction'].strip() else f'<Picture {i+1}> supplies the {role} reference; ignore its image background.' for i,role in enumerate(roles)]
-    settings['prompt']='\n'.join(lines)+'\n\n'+text+'\nUse <Video 1> as the source edit. Preserve source scene, timing and camera unless the direction explicitly changes them. Keep unrelated people and objects unchanged. Preserve source speech timing and lip articulation continuously through the entire clip, from the first spoken syllable to the last. Match mouth openings, closures, jaw motion and pauses to the original performance; do not let the speaking face become static halfway through. Keep reference facial identity while the mouth moves. Do not invent dialogue.'
+    bindings={assets[ident]['handle'].casefold():f'<Picture {i+1}>' for i,ident in enumerate(refs)}
+    mapping=settings.get('swap_people_map',{});people=[]
     if settings.get('swap_analysis_id'):
         from .swap_people import selected_manifest
         from .storage import Store
-        manifest=selected_manifest(store or Store(),project['id'],settings)
-        mapped=settings.get('swap_people_map',{})
-        valid={p['id'] for p in manifest['people']}
-        if not mapped or any(k not in valid for k in mapped):raise ValueError('Choose a person and a replacement image.')
-        definitions=[f'<Subject {i+1}> from <Picture {refs.index(ident)+1}> replaces source person {person}.' for i,(person,ident) in enumerate(mapped.items())]
-        direction_lines=[line.strip() for line in settings.get('swap_direction','').splitlines() if line.strip()]
-        auto_direction=bool(direction_lines) and all(re.fullmatch(r'Replace the .+ in @video1 with @[\w]+, including their face, hair and outfit\.',line) for line in direction_lines)
-        user_direction=text if settings['swap_direction_enabled'] and not auto_direction else ''
-        settings['prompt']='\n'.join(definitions)+('\n'+user_direction if user_direction else '')+'\nReplace each assigned performer completely: face, hair, physique and outfit. Keep each identity and wardrobe distinct. Follow the original gestures, expressions and visible mouth shapes. Preserve the source setting, camera, framing and timing. Keep unselected people unchanged. Ignore character-photo studio backgrounds. This is one source shot: add no people, cuts or dialogue.'
-    # Explicit swap directions are passed through without automatic expansion.
-    if settings['swap_direction_enabled'] and settings['swap_direction'].strip():
-        settings['prompt']=text
+        manifest=selected_manifest(store or Store(),project['id'],settings);people=manifest['people']
+        valid={p['id'] for p in people}
+        if not mapping or any(k not in valid for k in mapping):raise ValueError('Choose a person and a replacement image.')
+    direction=settings['swap_direction'] if settings['swap_direction_enabled'] and settings['swap_direction'].strip() else default_direction(project,refs,mapping,people)
+    if not settings['swap_direction_enabled'] or not settings['swap_direction'].strip():
+        settings['swap_direction']=direction;settings['swap_direction_enabled']=True
+    settings['prompt']=re.sub(r'(?<![\w@])@([a-zA-Z0-9_]+)',lambda m:'<Video 1>' if m[1].casefold()=='video1' else bindings.get(m[1].casefold(),m[0]),direction)
     return source
 
 

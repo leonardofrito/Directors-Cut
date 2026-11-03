@@ -8,21 +8,21 @@ Create characters, props and locations, then bring them together in reference-dr
 
 ## Download
 
-[**Download for Windows — 0.1.0-rc.8**](https://github.com/leonardofrito/Directors-Cut/releases/download/v0.1.0-rc.8/DirectorsCut-0.1.0-rc.8-windows-x64.exe) · [All release files](https://github.com/leonardofrito/Directors-Cut/releases/tag/v0.1.0-rc.8)
+[**Download for Windows — 0.1.0-rc.8.1**](https://github.com/leonardofrito/Directors-Cut/releases/download/v0.1.0-rc.8.1/DirectorsCut-0.1.0-rc.8.1-windows-x64.exe) · [All release files](https://github.com/leonardofrito/Directors-Cut/releases/tag/v0.1.0-rc.8.1)
 
 | Platform | Available download |
 | --- | --- |
-| Windows x64 | [Download the EXE](https://github.com/leonardofrito/Directors-Cut/releases/download/v0.1.0-rc.8/DirectorsCut-0.1.0-rc.8-windows-x64.exe) — Python included |
-| macOS | [Download the source package](https://github.com/leonardofrito/Directors-Cut/releases/download/v0.1.0-rc.8/DirectorsCut-0.1.0-rc.8-source.zip) — native app not published yet |
-| Linux | [Download the source package](https://github.com/leonardofrito/Directors-Cut/releases/download/v0.1.0-rc.8/DirectorsCut-0.1.0-rc.8-source.zip) — native executable not published yet |
+| Windows x64 | [Download the EXE](https://github.com/leonardofrito/Directors-Cut/releases/download/v0.1.0-rc.8.1/DirectorsCut-0.1.0-rc.8.1-windows-x64.exe) — Python included |
+| macOS | [Download the source package](https://github.com/leonardofrito/Directors-Cut/releases/download/v0.1.0-rc.8.1/DirectorsCut-0.1.0-rc.8.1-source.zip) — native app not published yet |
+| Linux | [Download the source package](https://github.com/leonardofrito/Directors-Cut/releases/download/v0.1.0-rc.8.1/DirectorsCut-0.1.0-rc.8.1-source.zip) — native executable not published yet |
 
-[Quick Start](packaging/QUICKSTART.md) · [Release notes](https://github.com/leonardofrito/Directors-Cut/releases/tag/v0.1.0-rc.8)
+[Quick Start](packaging/QUICKSTART.md) · [Release notes](https://github.com/leonardofrito/Directors-Cut/releases/tag/v0.1.0-rc.8.1)
 
 A compatible ComfyUI installation and model files are required separately. The current Windows build is an unsigned release candidate.
 
 ## Current source
 
-Release rc.8 includes Asset Creation, Director’s Cut and Second Take character replacement with per-cut revisions. Explicit swap prompts go directly to H3 without automatic prompt expansion. [Second Take guide](docs/second-take.md).
+Release rc.8.1 includes Asset Creation, Director’s Cut and Second Take character replacement with per-cut revisions. Explicit swap prompts go directly to H3 without automatic prompt expansion. [Second Take guide](docs/second-take.md).
 
 ## Bank of Ideas demo
 

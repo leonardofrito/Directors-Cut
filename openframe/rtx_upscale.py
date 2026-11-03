@@ -33,3 +33,25 @@ def build_graph(source, prefix, nodes=None):
         if name not in graph['rtx_upscale']['inputs'] and 'default' in options:
             graph['rtx_upscale']['inputs'][name] = options['default']
     return graph
+
+
+async def prepare_cuts(store,pid,source,stem):
+    """Split the completed result on CPU before uploading bounded RTX inputs."""
+    import asyncio
+    from .sequence import probe
+    from .swap_cuts import detect_cuts
+    from .motion_reference import run_ffmpeg
+    path=store.file(pid,source['file']);info=await probe(path);count=info['frames']
+    saved=source.get('swap_segments',[])
+    if saved and all(type(p.get('frames')) is int and p['frames']>0 for p in saved) and sum(p['frames'] for p in saved)==count:
+        ranges=[];start=0
+        for part in saved:ranges.append((start,start+part['frames']));start+=part['frames']
+    else:ranges=await asyncio.wait_for(asyncio.to_thread(detect_cuts,path,count),timeout=60)
+    parts=[]
+    for index,(start,end) in enumerate(ranges,1):
+        relative=stem+f'.rtx-source{index:02}.mp4';target=store.file(pid,relative)
+        await run_ffmpeg('-threads','2','-i',path,'-an','-vf',f'trim=start_frame={start}:end_frame={end},setpts=PTS-STARTPTS',
+            '-frames:v',end-start,'-c:v','libx264','-preset','veryfast','-crf','18','-threads','2','-y',target)
+        parts.append(dict(id=source['id']+f'-rtx-{index}',file=relative,media_type='video',index=index,
+            start_frame=start,end_frame=end,frames=end-start,generation_frames=end-start,status='queued',composite=False))
+    return parts

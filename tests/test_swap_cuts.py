@@ -14,7 +14,10 @@ class CutSwapTest(unittest.IsolatedAsyncioTestCase):
     async def test_regenerate_selflift_cut(self):
         await self.check_regenerate_recipe(True)
 
-    async def check_regenerate_recipe(self,selflift):
+    async def test_queue_multiple_cut_revisions(self):
+        await self.check_regenerate_recipe(True,queue_more=True)
+
+    async def check_regenerate_recipe(self,selflift,queue_more=False):
         with tempfile.TemporaryDirectory() as folder:
             root=Path(folder);(root/'shots/shot').mkdir(parents=True);parts=[]
             workflow={'129':{'class_type':'RandomNoise','inputs':{'noise_seed':7}},'92':{'inputs':{'filename_prefix':'old'}},'136':{'inputs':{'prompt':'Original cut direction'}}}
@@ -39,6 +42,18 @@ class CutSwapTest(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(json.loads((root/parts[1]['workflow']).read_text())['136']['inputs']['prompt'],'Original cut direction')
             self.assertEqual((root/parts[1]['output']).read_bytes(),b'cut2');self.assertEqual(studio.queue.qsize(),1)
             again=json.loads((await swap_cuts.regenerate(request)).text);self.assertEqual(again['id'],created['id']);self.assertEqual(studio.queue.qsize(),1)
+            if queue_more:
+                async def another_body():return dict(index=1,seed=43,prompt='Another queued cut',request_id='second-cut-test')
+                request.json=another_body
+                second=json.loads((await swap_cuts.regenerate(request)).text)
+                self.assertEqual(studio.queue.qsize(),2)
+                self.assertNotEqual(second['id'],created['id'])
+                self.assertEqual(second['swap_segments'][0]['status'],'queued')
+                details=json.loads((await swap_cuts.describe(request)).text)
+                self.assertEqual([len(p['versions']) for p in details['parts']],[2,2,1])
+                self.assertEqual(details['parts'][1]['versions'][-1]['status'],'queued')
+                self.assertEqual(original['swap_segments'][1]['status'],'succeeded')
+                return
             # Simulate the one completed inference, then choose that version for assembly.
             completed=project['shots'][0]['drafts'][-1];completed['status']='succeeded';completed['swap_segments'][1]['status']='succeeded'
             (root/completed['swap_segments'][1]['output']).write_bytes(b'new-cut2')
@@ -128,4 +143,67 @@ class CutSwapTest(unittest.IsolatedAsyncioTestCase):
             with self.assertRaises(GenerationCancelled):await swap_cuts.generate(studio,'test','shot',interrupted,cancel_after_update)
             self.assertEqual(calls[-1],'existing-job');self.assertEqual(len(calls),4)
 
+
+class HotfixSwapTest(unittest.IsolatedAsyncioTestCase):
+    def test_modular_prompt_one_to_six(self):
+        from openframe import character_swap
+        for n in range(1,7):
+            refs=[str(i) for i in range(n)]
+            project={'assets':[dict(id=i,handle='actor'+i) for i in refs]}
+            mapping={'p'+str(i+1):ident for i,ident in enumerate(refs)}
+            people=[dict(id=k,matched=True,label='performer '+k) for k in mapping]
+            text=character_swap.default_direction(project,refs,mapping,people)
+            self.assertEqual(text.count('Replace the original'),n)
+            self.assertEqual(text.count(character_swap.PROMPT_TAIL),1)
+            self.assertIn('original video\'s background',text)
+            for i in refs:self.assertIn('@actor'+i,text)
+            for a in project['assets']:a['file']='actor.png'
+            project['swap_sources']=[{'id':'source','duration':4,'width':32,'height':32}]
+            settings=dict(reference_ids=refs,swap_source_id='source',swap_full_duration=True,swap_start=0,swap_end=4,swap_roles=['character']*n,swap_direction_enabled=False,swap_direction='')
+            character_swap.resolve(project,settings)
+            self.assertEqual(len(settings['prompt'].splitlines()),n+1)
+            self.assertTrue(settings['swap_direction_enabled'])
+            self.assertIn('<Picture '+str(n)+'>',settings['prompt'])
+
+        with self.assertRaisesRegex(ValueError,'six'):
+            character_swap.settings({'reference_ids':[str(i) for i in range(7)]})
+
+    async def test_rtx_processes_cuts_and_joins_audio(self):
+        from openframe.server import Studio
+        from openframe import rtx_upscale
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder);(root/'shots/s').mkdir(parents=True)
+            source=root/'source.mp4'
+            await run_ffmpeg('-f','lavfi','-i','color=c=red:s=32x32:r=24:d=2','-f','lavfi','-i','sine=frequency=440:duration=2','-c:v','libx264','-c:a','aac','-threads','1','-shortest','-y',source)
+            original=dict(id='old',number=1,status='succeeded',file='source.mp4',settings={'studio_app':'second-take','duration':2,'prompt':'Original'},swap_segments=[{'frames':20},{'frames':28}])
+            project={'id':'p','shots':[{'id':'s','mode':'video','studio_app':'second-take','title':'Swap','drafts':[original]}]}
+            store=SimpleNamespace(load=lambda pid:copy.deepcopy(project),shot=lambda p,sid:p['shots'][0],file=lambda pid,path:root/path,save=lambda p:project.update(p))
+            async def nodes():return {k:{} for k in rtx_upscale.REQUIRED}
+            async def devices():return [dict(type='cuda',name='RTX fixture')]
+            uploads=[]
+            async def upload(p,refs):
+                uploads.extend(ref['file'] for ref in refs)
+                return [dict(comfy_image=str(root/ref['file'])) for ref in refs]
+            studio=SimpleNamespace(store=store,upscale_locks={},queue=asyncio.Queue(),queue_serial=0,nodes=nodes,gpu_devices=devices,upload_references=upload)
+            request=SimpleNamespace(match_info={'project':'p','shot':'s','draft':'old'})
+            response=await Studio.upscale_video(studio,request);draft=json.loads(response.text)
+            self.assertEqual(len(draft['swap_segments']),2);self.assertEqual(len(uploads),2)
+            self.assertNotIn('source.mp4',uploads)
+            self.assertEqual(draft['settings']['swap_prepared']['file'],'source.mp4')
+            self.assertEqual(studio.queue.qsize(),1)
+            lengths=[]
+            async def generate(graph,target,update,job_id=None):
+                self.assertIn('rtx_upscale',graph);self.assertFalse(any(n.get('class_type')=='TextGenerate' for n in graph.values()))
+                path=graph['rtx_load']['inputs']['file'];lengths.append((await probe(path))['frames'])
+                await update(status='running',stage='RTX test')
+                await run_ffmpeg('-i',path,'-vf','scale=64:64','-an','-c:v','libx264','-threads','1','-y',target)
+            studio.provider=SimpleNamespace(generate=generate)
+            async def update(**changes):project['shots'][0]['drafts'][-1].update(copy.deepcopy(changes))
+            await swap_cuts.generate(studio,'p','s',draft,update)
+            result=await probe(root/draft['file'])
+            self.assertEqual(lengths,[20,28]);self.assertEqual(result['frames'],48)
+            self.assertEqual((result['width'],result['height']),(64,64));self.assertTrue(result['audio'])
+            self.assertTrue(source.is_file())
+
 if __name__=='__main__':unittest.main()
+

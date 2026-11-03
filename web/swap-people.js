@@ -14,7 +14,7 @@
   function applyDefaults(){
     const s=snapshot(),valid=new Set(data.people.map(p=>p.id));mapping=s.swap_analysis_id===data.id?Object.fromEntries(Object.entries(s.swap_people_map||{}).filter(([p,a])=>valid.has(p)&&s.reference_ids.includes(a))):{};
     if(!selected)selected=data.people.find(p=>p.matched)?.id||null;
-    if(!Object.keys(mapping).length)data.people.filter(p=>p.matched).sort((a,b)=>Number(a.id.slice(1))-Number(b.id.slice(1))).slice(0,s.reference_ids.filter((id,i)=>s.swap_roles[i]!=='background').length).forEach((p,i)=>mapping[p.id]=s.reference_ids.filter((id,j)=>s.swap_roles[j]!=='background')[i]);
+    const remaining=s.reference_ids.filter((id,i)=>s.swap_roles[i]==='character'&&!Object.values(mapping).includes(id));const free=data.people.filter(p=>p.matched&&!mapping[p.id]).sort((a,b)=>Number(a.id.slice(1))-Number(b.id.slice(1)));remaining.forEach((id,i)=>{if(free[i])mapping[free[i].id]=id;});
   }
   function draw(){
     if(!dialog.open||!same())return;
@@ -47,7 +47,7 @@
   q('.people-apply').onclick=()=>{if(!same()||!Object.keys(mapping).length)return;DirectorSwap.setPeople(data.id,mapping,data.people);stop();dialog.close();const done=resolve;resolve=null;done?.(true);};
   window.DirectorSwapPeople={open,get picking(){return picking;},bind(asset){if(!picking||!data)return;mapping[picking]=asset;picking=null;draw();},async prepareGeneration(){
     const s=snapshot();if(!s.swap_source_id)return false;
-    if(s.swap_analysis_id&&Object.keys(s.swap_people_map||{}).length){const r=await api(`/projects/${project.id}/shots/${DirectorVideo.currentShot.id}/people`,'POST',s);if(r.status==='succeeded'&&r.id===s.swap_analysis_id)return true;}
+    if(s.swap_analysis_id&&Object.keys(s.swap_people_map||{}).length){const r=await api(`/projects/${project.id}/shots/${DirectorVideo.currentShot.id}/people`,'POST',s);if(r.status==='succeeded'&&r.id===s.swap_analysis_id&&s.reference_ids.every((id,i)=>s.swap_roles[i]!=='character'||Object.values(s.swap_people_map).includes(id)))return true;}
     const answer=new Promise(done=>resolve=done);await open();return answer;
   }};
 })();

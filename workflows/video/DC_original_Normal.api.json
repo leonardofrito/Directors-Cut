@@ -1,0 +1,349 @@
+{
+  "1": {
+    "inputs": {
+      "image": "PrivateProperty/juanito.png"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "FOTO 1 \u2014 refer\u00eancia principal"
+    }
+  },
+  "10": {
+    "inputs": {
+      "value": "subject_definitions:\n<Subject 1> is the person in <Picture 1>. Preserve their identity, hairstyle, proportions and clothing.\nsummary:\n[reference generation] A natural cinematic portrait of <Subject 1> outdoors in soft daylight.\nretention_analysis:\nUse <Picture 1> for the person's appearance. Allow a new pose and setting.\ndetailed_description:\n[Shot 1] A steady medium shot. <Subject 1> looks toward the camera, smiles subtly and gives one small wave. Natural, restrained motion.\noverall_soundscape:\nQuiet outdoor ambience. No dialogue.\nnon_diegetic_music:\nN/A"
+    },
+    "class_type": "PrimitiveStringMultiline",
+    "_meta": {
+      "title": "PROMPT \u2014 escreva a cena e o som"
+    }
+  },
+  "11": {
+    "inputs": {
+      "aspect_ratio": "16:9 (Widescreen)",
+      "megapixels": 1.0,
+      "multiple": 32
+    },
+    "class_type": "ResolutionSelector",
+    "_meta": {
+      "title": "RESOLU\u00c7\u00c3O \u2014 aspecto / megapixels"
+    }
+  },
+  "12": {
+    "inputs": {
+      "value": 5.0
+    },
+    "class_type": "PrimitiveFloat",
+    "_meta": {
+      "title": "DURA\u00c7\u00c3O \u2014 segundos / at\u00e9 ~15s"
+    }
+  },
+  "13": {
+    "inputs": {
+      "expression": "max(5, min(362, 5 + 17 * round((a * 24 - 5) / 17)))",
+      "values.a": [
+        "12",
+        0
+      ]
+    },
+    "class_type": "ComfyMathExpression",
+    "_meta": {
+      "title": "Dura\u00e7\u00e3o \u2192 grade H3 / 24fps"
+    }
+  },
+  "127": {
+    "inputs": {
+      "unet_name": "minimax_h3_ref2va_pruned-w4a8_convrot_pruned.safetensors",
+      "weight_dtype": "default"
+    },
+    "class_type": "UNETLoader",
+    "_meta": {
+      "title": "H3 BASE \u2014 REF2VA W4A8 ConvRot"
+    }
+  },
+  "145": {
+    "inputs": {
+      "lora_name": "experimental\\minimax_h3_dmd_ref2va_8step_turbo_pruned.safetensors",
+      "strength_model": 1.0,
+      "model": [
+        "127",
+        0
+      ]
+    },
+    "class_type": "LoraLoaderModelOnly",
+    "_meta": {
+      "title": "ACELERADORA \u2014 DMD Turbo8"
+    }
+  },
+  "141": {
+    "inputs": {
+      "shift_video": 12.0,
+      "shift_audio": 3.0,
+      "model": [
+        "145",
+        0
+      ]
+    },
+    "class_type": "MiniMaxH3SigmaShift",
+    "_meta": {
+      "title": "Shifts H3 \u2014 v\u00eddeo 12 / \u00e1udio 3"
+    }
+  },
+  "dc_ffn": {
+    "inputs": {
+      "chunks": 4,
+      "seq_threshold": 4096,
+      "model": [
+        "141",
+        0
+      ]
+    },
+    "class_type": "MiniMaxChunkFeedForward",
+    "_meta": {
+      "title": "FFN4 \u2014 reduzir pico de mem\u00f3ria"
+    }
+  },
+  "142": {
+    "inputs": {
+      "attention": "comfy kitchen attention",
+      "model": [
+        "dc_ffn",
+        0
+      ]
+    },
+    "class_type": "ModelAttentionBackend",
+    "_meta": {
+      "title": "ATEN\u00c7\u00c3O \u2014 Comfy Kitchen"
+    }
+  },
+  "128": {
+    "inputs": {
+      "clip_name": "qwen3vl_32b_minimax_h3_w4a8_mixed.safetensors",
+      "type": "minimax",
+      "device": "default"
+    },
+    "class_type": "CLIPLoader",
+    "_meta": {
+      "title": "TEXT ENCODER \u2014 Qwen H3 W4A8"
+    }
+  },
+  "119": {
+    "inputs": {
+      "vae_name": "minimax_h3_video_vae_int8_convrot.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "VAE V\u00cdDEO \u2014 INT8"
+    }
+  },
+  "120": {
+    "inputs": {
+      "vae_name": "minimax_h3_audio_vae_fp32.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "VAE \u00c1UDIO \u2014 FP32"
+    }
+  },
+  "136": {
+    "inputs": {
+      "ref_image_size": "match",
+      "clip": [
+        "128",
+        0
+      ],
+      "prompt": [
+        "10",
+        0
+      ],
+      "width": [
+        "11",
+        0
+      ],
+      "height": [
+        "11",
+        1
+      ],
+      "length": [
+        "13",
+        1
+      ],
+      "vae": [
+        "119",
+        0
+      ],
+      "audio_vae": [
+        "120",
+        0
+      ],
+      "ref_images.ref_image_0": [
+        "1",
+        0
+      ]
+    },
+    "class_type": "MiniMaxH3ReferenceToVideo",
+    "_meta": {
+      "title": "IMAGENS \u2192 V\u00cdDEO E \u00c1UDIO"
+    }
+  },
+  "dc_negative": {
+    "inputs": {
+      "conditioning": [
+        "136",
+        0
+      ]
+    },
+    "class_type": "ConditioningZeroOut",
+    "_meta": {
+      "title": "Negativo vazio \u2014 CFG 1"
+    }
+  },
+  "124": {
+    "inputs": {
+      "scheduler": "simple",
+      "steps": 8,
+      "denoise": 1.0,
+      "model": [
+        "142",
+        0
+      ]
+    },
+    "class_type": "BasicScheduler",
+    "_meta": {
+      "title": "8 PASSOS \u2014 simple"
+    }
+  },
+  "123": {
+    "inputs": {
+      "sampler_name": "euler"
+    },
+    "class_type": "KSamplerSelect",
+    "_meta": {
+      "title": "SAMPLER \u2014 Euler"
+    }
+  },
+  "125": {
+    "class_type": "SamplerCustomAdvanced",
+    "inputs": {
+      "noise": [
+        "129",
+        0
+      ],
+      "guider": [
+        "126",
+        0
+      ],
+      "sampler": [
+        "123",
+        0
+      ],
+      "sigmas": [
+        "124",
+        0
+      ],
+      "latent_image": [
+        "136",
+        1
+      ]
+    }
+  },
+  "160": {
+    "inputs": {
+      "av_latent": [
+        "125",
+        0
+      ]
+    },
+    "class_type": "LTXVSeparateAVLatent",
+    "_meta": {
+      "title": "Separar v\u00eddeo / \u00e1udio gerados"
+    }
+  },
+  "122": {
+    "inputs": {
+      "samples": [
+        "160",
+        0
+      ],
+      "vae": [
+        "119",
+        0
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "Decodificar V\u00cdDEO"
+    }
+  },
+  "121": {
+    "inputs": {
+      "samples": [
+        "160",
+        1
+      ],
+      "vae": [
+        "120",
+        0
+      ]
+    },
+    "class_type": "VAEDecodeAudio",
+    "_meta": {
+      "title": "Decodificar \u00c1UDIO GERADO"
+    }
+  },
+  "130": {
+    "inputs": {
+      "fps": 24.0,
+      "bit_depth": 8,
+      "color_space": "sRGB",
+      "chroma_subsampling": "auto",
+      "codec": "none",
+      "images": [
+        "122",
+        0
+      ],
+      "audio": [
+        "121",
+        0
+      ]
+    },
+    "class_type": "CreateVideo",
+    "_meta": {
+      "title": "Juntar V\u00cdDEO + \u00c1UDIO / 24fps"
+    }
+  },
+  "92": {
+    "inputs": {
+      "filename_prefix": "video/DirectorsCut/Bases/01_H3_Base_DMD8_SelfLift",
+      "format": "auto",
+      "codec": "auto",
+      "video": [
+        "130",
+        0
+      ],
+      "format.codec": "auto"
+    },
+    "class_type": "SaveVideo",
+    "_meta": {
+      "title": "RESULTADO \u2014 v\u00eddeo com \u00e1udio"
+    }
+  },
+  "126": {
+    "class_type": "BasicGuider",
+    "inputs": {
+      "model": [
+        "142",
+        0
+      ],
+      "conditioning": [
+        "136",
+        0
+      ]
+    }
+  },
+  "129": {
+    "class_type": "RandomNoise",
+    "inputs": {
+      "noise_seed": 42
+    }
+  }
+}

@@ -104,11 +104,11 @@ async def describe(request):
 def rebuild_cut_recipe(graph, saved, engine, seed, prefix, nodes):
     """Change the recipe while retaining this cut's uploaded conditioning media."""
     from . import video
-    if not isinstance(engine,dict) or set(engine)-{'video_preset','model_files','selflift'}:
+    if not isinstance(engine,dict) or set(engine)-{'video_preset','model_files','selflift','swap_mode'}:
         raise ValueError('Invalid cut engine settings.')
     snapshot={**saved,**engine,'seed':seed,'prompt_enhancer':False}
     checked=video.settings(snapshot)
-    snapshot.update({key:checked[key] for key in ('video_preset','model_files','model_format','selflift')})
+    snapshot.update({key:checked[key] for key in ('video_preset','model_files','model_format','selflift','swap_mode') if key in checked})
     encoder=graph['136']['inputs']
     refs=[]
     for key in sorted((k for k in encoder if k.startswith('ref_images.ref_image_')),key=lambda k:int(k.rsplit('_',1)[1])):
@@ -124,7 +124,7 @@ def rebuild_cut_recipe(graph, saved, engine, seed, prefix, nodes):
     # Keep exact cut geometry and padded frame count when changing only the engine.
     for key in ('width','height','length'):
         if key in encoder:result['136']['inputs'][key]=encoder[key]
-    return result,{key:checked[key] for key in ('video_preset','model_files','model_format','selflift')}
+    return result,{key:checked[key] for key in ('video_preset','model_files','model_format','selflift','swap_mode') if key in checked}
 
 
 async def regenerate(request):
@@ -167,7 +167,7 @@ async def regenerate(request):
     seed=secrets.randbelow(2**53) if seed==-1 else seed
     for part in parts:
         if part.get('status')!='succeeded' or not store.file(pid,part['output']).is_file():raise ValueError('A saved cut is missing. The original take cannot be rebuilt.')
-    number=max((d.get('number',0) for d in shot['drafts']),default=0)+1;stem=f'shots/{sid}/draft_{number:03d}';draft=copy.deepcopy(source)
+    number=max((d.get('number',0) for d in shot['drafts']+shot.get('archived_drafts',[])),default=0)+1;stem=f'shots/{sid}/draft_{number:03d}';draft=copy.deepcopy(source)
     for key in ('job_id','cancel_requested','cancel_sent','error','audio_applied_at','applied_output_audio_id'):draft.pop(key,None)
     draft.update(id=uuid.uuid4().hex,number=number,status='queued',file=stem+'.mp4',workflow=stem+'.workflow.json',created_at=now(),request_id=request_id,regenerated_from=source['id'],regenerated_cut=None if finishing else index)
     draft['swap_segments']=copy.deepcopy(parts)
@@ -239,6 +239,14 @@ def detect_cuts(path, frame_count):
     cuts = sorted({0, frame_count, *(max(0,min(frame_count,a.frame_num)) for a,b in scenes)})
     return [(a,b) for a,b in zip(cuts,cuts[1:]) if b>a]
 
+
+def reviewed_ranges(settings,count):
+    if not settings or not settings.get('swap_cuts_reviewed'):return None
+    offset=round(settings['swap_start']*24)
+    cuts=sorted({0,count,*(row['frame']-offset for row in settings.get('swap_cut_candidates',[])
+        if row['accepted'] and 0<row['frame']-offset<count)})
+    return list(zip(cuts,cuts[1:]))
+
 async def prepare_parts(store, project, prepared, settings=None):
     maskfile=None
     detection_path=store.file(project['id'],prepared['file'])
@@ -247,7 +255,8 @@ async def prepare_parts(store, project, prepared, settings=None):
     info=await probe(path)
     count=info['frames']
     if not 1<=count<=24*30+1:raise ValueError('Cut detection accepts a source range up to 30 seconds.')
-    ranges=await asyncio.wait_for(asyncio.to_thread(detect_cuts,detection_path,count),timeout=60)
+    ranges=reviewed_ranges(settings,count)
+    if ranges is None:ranges=await asyncio.wait_for(asyncio.to_thread(detect_cuts,detection_path,count),timeout=60)
     # Even a single shot uses this path, so padding and audio behavior stay identical.
     result=[]
     for index,(a,b) in enumerate(ranges):

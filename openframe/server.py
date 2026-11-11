@@ -172,7 +172,7 @@ class Studio:
                 raise
             except Exception as exc:
                 LOG.exception('Generation failed')
-                await update(status='failed', error=str(exc))
+                await update(status='failed', error=str(exc) or type(exc).__name__)
             finally:
                 self.queue.task_done()
 
@@ -308,7 +308,7 @@ class Studio:
                 online = True
         except Exception as exc:
             detail = str(exc)
-        return web.json_response(dict(second_take=dict(max_references=character_swap.MAX_REFERENCES,prompt_tail=character_swap.PROMPT_TAIL),hardware=engine_config.hardware(getattr(self,'engine_system_stats',{})),rtx_upscale=rtx_upscale.availability(nodes, devices), styles=list(STYLE), cameras=CAMERAS, ratios=list(RATIOS), lenses=list(OPTICS), lighting=list(LIGHTING), films=list(FILM), grades=list(GRADE), lens_types=list(LENS_TYPES), sensors=list(SENSORS), focal_lengths=FOCAL_LENGTHS, light_colors=list(LIGHT_COLORS), palettes=PALETTES, film_palettes=FILM_PALETTES, f_stops=F_STOPS, legacy_camera_defaults={key: legacy_camera({'lens': key}) for key in OPTICS},
+        return web.json_response(dict(second_take=dict(max_references=character_swap.MAX_REFERENCES,prompt_tail=character_swap.PROMPT_TAIL,modes=character_swap.modes()),hardware=engine_config.hardware(getattr(self,'engine_system_stats',{})),rtx_upscale=rtx_upscale.availability(nodes, devices), styles=list(STYLE), cameras=CAMERAS, ratios=list(RATIOS), lenses=list(OPTICS), lighting=list(LIGHTING), films=list(FILM), grades=list(GRADE), lens_types=list(LENS_TYPES), sensors=list(SENSORS), focal_lengths=FOCAL_LENGTHS, light_colors=list(LIGHT_COLORS), palettes=PALETTES, film_palettes=FILM_PALETTES, f_stops=F_STOPS, legacy_camera_defaults={key: legacy_camera({'lens': key}) for key in OPTICS},
             image_edit_presets=edit_presets.choices(), preset_hints={'style': STYLE, 'camera': FRAMING, 'lens_type': LENS_TYPES, 'sensor': SENSORS, 'lighting': LIGHTING, 'light_color': LIGHT_COLORS, 'film': FILM, 'grade': GRADE}, preview_generation_enabled=False, preview_images=preview_images(), asset_categories=ASSET_CATEGORIES, character_categories=CATEGORIES, enhancer=enhancer_availability(nodes, 'qwen21'), loras=lora_availability(nodes), video=video.availability(nodes, vram_total), workflows=describe(nodes), output_dir=str(self.store.root), online=online, detail=detail))
 
     async def projects(self, request):
@@ -379,7 +379,9 @@ class Studio:
             content = bytes(content)
         else:
             data = await request.json()
-            if data.get('source_asset'):
+            if data.get('url'):
+                content, _ = await reference_uploads.download_image(data['url'])
+            elif data.get('source_asset'):
                 source = self.store.load(data['source_project'])
                 asset = next((a for a in source.get('assets', []) if a['id'] == data['source_asset']), None)
                 if not asset:
@@ -630,6 +632,31 @@ class Studio:
         from .board import thumbnail
         return await thumbnail(request, self.store)
 
+    async def recover_completed_take(self, request):
+        """Queue download/assembly of confirmed results, never a new inference."""
+        pid,sid,did=(request.match_info[k] for k in ('project','shot','draft'))
+        project=self.store.load(pid);shot=self.store.shot(project,sid)
+        draft=next((d for d in shot['drafts'] if d['id']==did),None)
+        if not draft or draft['status']!='failed':raise ValueError('Choose a failed take with a completed engine result.')
+        pending=[]
+        for part in draft.get('swap_segments',[]) or [draft]:
+            if part.get('status')=='succeeded' and self.store.file(pid,part.get('output',draft['file'])).is_file():continue
+            ident=part.get('job_id')
+            if not ident:raise ValueError('This take has unfinished work. Recovering it would require new generation.')
+            job=await self.provider.client.jobs.get(ident)
+            if job.status!='succeeded':raise ValueError('The engine result is not completed. Recovery did not start another generation.')
+            pending.append(ident)
+        # Re-read after checking the engine so active generations and edits stay intact.
+        project=self.store.load(pid);shot=self.store.shot(project,sid)
+        draft=next(d for d in shot['drafts'] if d['id']==did)
+        if draft['status']!='failed':raise ValueError('This take is already being recovered.')
+        current=[p.get('job_id') for p in draft.get('swap_segments',[]) or [draft] if p.get('status')!='succeeded']
+        if any(i not in pending for i in current):raise ValueError('The take changed. Refresh before recovering it.')
+        self.queue_serial+=1;draft.update(status='queued',queue_order=self.queue_serial)
+        for key in ('error','cancel_requested','cancel_sent'):draft.pop(key,None)
+        self.store.save(project);self.queue.put_nowait((pid,sid,did))
+        return web.json_response(draft,status=202)
+
     async def swap_session(self, request):
         lock = request.app.setdefault('swap_session_lock', asyncio.Lock())
         async with lock:
@@ -799,7 +826,7 @@ class Studio:
                 seed = (settings['seed'] + (-offset if seed_mode=='decrement' else offset if seed_mode=='increment' else 0)) % (2**53)
             seeds.add(seed)
             snapshot['seed'] = seed
-            number = len(s['drafts']) + offset + 1
+            number = max((d.get('number', i+1) for i,d in enumerate(s['drafts']+s.get('archived_drafts',[]))),default=0) + offset + 1
             stem = f'shots/{s["id"]}/draft_{number:03d}'
             graph, prompt = video.build_graph(snapshot, f'video/DirectorsCut/{p["id"]}/{s["id"]}', nodes) if is_video else build_graph(snapshot, f'DirectorsCut/{p["id"]}/{s["id"]}', nodes)
             self.queue_serial += 1
@@ -877,7 +904,7 @@ class Studio:
                 graph=rtx_upscale.build_graph(uploaded[0]['comfy_image'],f'video/DirectorsCut/{pid}/{sid}/RTX',nodes)
             # Keep edits and queued jobs created while the CPU inputs were prepared.
             p,s,source=source_data()
-            number=max((d.get('number',0) for d in s['drafts']),default=0)+1
+            number=max((d.get('number',0) for d in s['drafts']+s.get('archived_drafts',[])),default=0)+1
             stem=f'shots/{sid}/draft_{number:03d}'
             snapshot = dict(source['settings'], title=s['title'], output_audio_id='')
             snapshot.pop('output_audio', None)  # Already present in the source video; do not apply twice.
@@ -979,6 +1006,9 @@ def create_app(shutdown_event=None):
     app.router.add_post('/api/projects/{project}/shots', studio.shots)
     app.router.add_route('GET', '/api/projects/{project}/assets', studio.assets)
     app.router.add_route('POST', '/api/projects/{project}/assets', studio.assets)
+    from . import selected_downloads
+    app.router.add_post('/api/projects/{project}/downloads', selected_downloads.create)
+    app.router.add_post('/api/projects/{project}/selections/delete', selected_downloads.delete)
     app.router.add_post('/api/projects/{project}/assets/batch', studio.batch_assets)
     app.router.add_patch('/api/projects/{project}/assets/{asset}', studio.asset_action)
     app.router.add_delete('/api/projects/{project}/assets/{asset}', studio.asset_action)
@@ -988,6 +1018,8 @@ def create_app(shutdown_event=None):
     app.router.add_post('/api/projects/{project}/shots/{shot}/references', studio.attach_reference_image)
     app.router.add_get('/api/second-take/videos', studio.swap_videos)
     app.router.add_post('/api/second-take/videos', studio.swap_videos)
+    from . import cut_preview
+    app.router.add_post('/api/second-take/cut-preview', cut_preview.preview)
     app.router.add_post('/api/second-take/session', studio.swap_session)
     app.router.add_get('/api/second-take/assets', studio.swap_assets)
     app.router.add_post('/api/second-take/assets', studio.swap_assets)
@@ -1001,6 +1033,7 @@ def create_app(shutdown_event=None):
     app.router.add_post('/api/projects/{project}/people/{analysis}/cancel', swap_people.cancel)
     app.router.add_post('/api/projects/{project}/shots/{shot}/approve', studio.approve)
     app.router.add_post('/api/projects/{project}/shots/{shot}/drafts/{draft}/cancel', studio.cancel_queued)
+    app.router.add_post('/api/projects/{project}/shots/{shot}/drafts/{draft}/recover', studio.recover_completed_take)
     app.router.add_delete('/api/projects/{project}/shots/{shot}/drafts/{draft}', studio.delete_swap_take)
     app.router.add_post('/api/projects/{project}/shots/{shot}/drafts/{draft}/rtx-upscale', studio.upscale_video)
     app.router.add_post('/api/projects/{project}/shots/{shot}/drafts/{draft}/cuts/regenerate', swap_cuts.regenerate)

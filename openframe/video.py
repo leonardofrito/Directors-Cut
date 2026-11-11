@@ -11,8 +11,10 @@ from . import video_prompt, selflift
 from .video_mentions import bind_media_mentions
 
 ROOT = Path(__file__).resolve().parent.parent / 'workflows/video'
-PRESETS = {'original': 'H3_REF2VA_8step_Original.api.json', 'vsa': 'H3_REF2VA_8step_VSA.api.json',
-           'fast-omni': 'FastH3_OmniRef_8step.api.json'}
+PRESETS = {'original': 'DC_original_Normal.api.json', 'fast-omni': 'DC_fast-omni_Normal.api.json',
+           'hyperflow': 'DC_hyperflow_Normal.api.json', 'vsa': 'H3_REF2VA_8step_VSA.api.json'}
+TARA_PRESETS = {'original':'DC_original_TARA.api.json','fast-omni':'DC_fast-omni_TARA.api.json'}
+TARA_LORA = 'minimax_h3_motion_transfer_tara_v1.0_ref2va.safetensors'
 MODEL_FIELDS = {
     '127': ('Video model', 'unet_name', r'minimax.*h3.*ref2va.*\.safetensors$'),
     '128': ('H3 text encoder', 'clip_name', r'qwen3vl[_-]32b.*minimax.*h3.*\.(?:safetensors|gguf)$'),
@@ -24,16 +26,19 @@ MODEL_FIELDS = {
 
 
 def model_pattern(key, preset):
+    if key == '127' and preset == 'hyperflow':
+        return r'^(?=.*hyperflow)(?=.*ref2va).*\.(?:safetensors|gguf)$'
     if key == '127' and preset == 'fast-omni':
         return r'fast[-_]?h3.*omni(?:ref)?.*\.(?:safetensors|gguf)$'
     if key == '127':
-        return r'minimax[-_].*h3.*ref2va.*\.(?:safetensors|gguf)$'
+        return r'^(?!.*(?:hyperflow|omni)).*minimax[-_].*h3.*ref2va.*\.(?:safetensors|gguf)$'
     return MODEL_FIELDS[key][2]
 
 
 def model_preset(data):
     filename = data.get('model_files', {}).get('127', '') if isinstance(data.get('model_files', {}), dict) else ''
     if isinstance(filename, str) and filename:
+        if 'hyperflow' in filename.lower():return 'hyperflow'
         return 'fast-omni' if re.search(model_pattern('127', 'fast-omni'), filename, re.I) else 'vsa' if data.get('video_preset') == 'vsa' else 'original'
     return data.get('video_preset', 'fast-omni')
 
@@ -42,7 +47,7 @@ def model_files(data):
     files = data.get('model_files', {})
     preset = model_preset(data)
     if not isinstance(files, dict) or any(key not in MODEL_FIELDS or not isinstance(value, str) or
-            (preset == 'fast-omni' and key in ('145', '156')) or
+            (preset in ('fast-omni','hyperflow') and key in ('145', '156')) or
             len(value) > 512 or not re.search(model_pattern(key, preset), value, re.I) for key, value in files.items()):
         raise ValueError('Choose compatible H3 Ref2VA model files.')
     return dict(files)
@@ -68,6 +73,8 @@ def settings(data):
     preset = model_preset(data)
     if preset not in PRESETS:
         raise ValueError('Choose an installed H3 video workflow.')
+    if preset=='hyperflow' and any('tara' in row.get('name','').lower() or 'character_swap' in row.get('name','').lower() for row in data.get('loras',[]) if isinstance(row,dict)):
+        raise ValueError('HyperFlow does not support Character Swap or TARA. Choose Base or OmniRef.')
     refs = data.get('reference_ids', [])
     if not isinstance(refs, list) or len(refs) > 9 or not all(isinstance(x, str) for x in refs):
         raise ValueError('Choose up to 9 video image references.')
@@ -96,8 +103,10 @@ def settings(data):
                 loras=validate_loras(data.get('loras', [])))
 
 
-def template(preset):
-    return json.loads((ROOT / PRESETS[preset]).read_text(encoding='utf-8'))
+def template(preset, swap=False):
+    if swap and preset not in TARA_PRESETS:
+        raise ValueError('HyperFlow does not support Character Swap. Choose Base or OmniRef.')
+    return json.loads((ROOT / (TARA_PRESETS if swap else PRESETS)[preset]).read_text(encoding='utf-8'))
 
 
 def availability(nodes, vram_total=None, selected=None):
@@ -114,7 +123,7 @@ def availability(nodes, vram_total=None, selected=None):
                 role, field, _ = MODEL_FIELDS[key]
                 pattern = model_pattern(key, preset)
                 all_files = names(nodes, kind, field)
-                if key == '127':
+                if key == '127' and preset!='hyperflow':
                     all_files += names(nodes, 'UnetLoaderGGUF', 'unet_name')
                 if key == '128':
                     all_files += names(nodes, 'CLIPLoaderGGUF', 'clip_name')
@@ -141,7 +150,7 @@ def availability(nodes, vram_total=None, selected=None):
         loaders.sort(key=lambda loader: list(MODEL_FIELDS).index(loader['node']))
         result[preset] = dict(ready=not missing, missing=list(dict.fromkeys(missing)), fixed_missing=list(dict.fromkeys(fixed_missing)), loaders=loaders)
     model_choices = [dict(file=file, preset=preset, recommended=preset == 'fast-omni')
-                     for preset in ('fast-omni', 'original') for loader in result[preset]['loaders']
+                     for preset in ('fast-omni', 'original','hyperflow') for loader in result[preset]['loaders']
                      if loader['node'] == '127' for file in loader['options']]
     return dict(presets=result, models=model_choices, selflift=selflift.availability(nodes),loras=lora_availability(nodes),prompt_presets=video_prompt.catalog(),enhancer=video_prompt.availability(nodes),
                 min_vram_gb=12, vram_total=vram_total, steps=8, max_references=9)
@@ -158,21 +167,59 @@ def reference_prompt(prompt, references, settings=None):
     return ('Reference bindings, in input order:\n' + '\n'.join(lines) + '\n\n' + prompt) if lines else prompt
 
 
+def validate_graph_links(graph,nodes):
+    """Reject invalid output slots before SDK submission, with a useful error."""
+    if nodes is None:return
+    for target,node in graph.items():
+        for field,value in node['inputs'].items():
+            if not (isinstance(value,list) and len(value)==2 and isinstance(value[0],str) and isinstance(value[1],int)):continue
+            source,slot=value
+            if source not in graph:raise ValueError(f'Workflow connection missing: {target}.{field} → {source}.')
+            kind=graph[source]['class_type'];schema=nodes.get(kind)
+            if schema is not None and not 0<=slot<len(schema.get('output',[])):
+                raise ValueError(f'Workflow connection invalid: {kind} ({source}) has no output {slot}; required by {node["class_type"]} ({target}).{field}.')
+
+
 def build_graph(saved, prefix, nodes=None):
-    graph = template(model_preset(saved))
+    swap=saved.get('studio_app')=='second-take'
+    from . import character_swap
+    swap_mode=character_swap.mode(saved) if swap else None
+    graph = template(model_preset(saved),swap and swap_mode=='motion')
+    if swap and model_preset(saved)=='hyperflow':raise ValueError('HyperFlow does not support Character Swap. Choose Base or OmniRef.')
+    required_lora=character_swap.MODES[swap_mode]['lora'] if swap else None
+    if swap and nodes is not None:
+        if required_lora not in lora_availability(nodes)['files']:
+            raise ValueError('Second Take LoRA not installed: '+required_lora)
+        if swap_mode=='motion' and 'BFSMiniMaxH3NativeTemporal' not in nodes:
+            raise ValueError('Motion Transfer requires BFS native TARA.')
     for key, filename in model_files(saved).items():
         if key in graph:
             graph[key]['inputs'][MODEL_FIELDS[key][1]] = filename
-    if graph['127']['inputs']['unet_name'].lower().endswith('.gguf'):
+    if graph['127']['class_type']!='HyperFlowLoader' and graph['127']['inputs']['unet_name'].lower().endswith('.gguf'):
         graph['127'] = dict(class_type='UnetLoaderGGUF', inputs=dict(unet_name=graph['127']['inputs']['unet_name']))
     if graph['128']['inputs']['clip_name'].lower().endswith('.gguf'):
         inputs = graph['128']['inputs']
         graph['128'] = dict(class_type='CLIPLoaderGGUF', inputs=dict(clip_name=inputs['clip_name'], type=inputs['type']))
-    attach_loras(graph, saved.get('loras', []))
+    if swap and swap_mode!='motion':
+        parent=graph['142']['inputs']['model']
+        graph['dc_swap_lora']=dict(class_type='LoraLoaderModelOnly',inputs=dict(model=parent,lora_name=required_lora,strength_model=1.))
+        graph['142']['inputs']['model']=['dc_swap_lora',0]
+        if swap_mode=='character-1':
+            graph['124']['inputs']['scheduler']='normal'
+            graph['123']['inputs']['sampler_name']='er_sde'
+            if model_preset(saved)=='original':
+                turbo='minimax_h3_fl2v_turbo_8step_v1.0_768p_comfyui_bf16.safetensors'
+                if nodes is not None and turbo not in lora_availability(nodes)['files']:raise ValueError('Character Swap 1 acceleration LoRA not installed: '+turbo)
+                graph['145']['inputs']['lora_name']=turbo
+    adapter_loras={row['lora'] for row in character_swap.MODES.values()}
+    attach_loras(graph, [r for r in saved.get('loras', []) if not swap or r['name'] not in adapter_loras])
     refs = saved.get('references', [])
     if len(refs) > 9:
         raise ValueError('H3 accepts up to 9 image references.')
     prompt = saved['prompt'] if saved.get('studio_app') == 'second-take' else reference_prompt(saved['prompt'], refs, saved)
+    if swap:
+        prompt=re.sub(r'^\s*(?:body_swap|motion_transfer):\s*','',prompt,count=1)
+        if swap_mode=='motion':prompt='motion_transfer:\n'+prompt
     prompt = video_prompt.apply_direction(prompt, video_prompt.validate(saved.get('video_direction', {})))
     encoder = graph['136']['inputs']
     for key in list(encoder):
@@ -188,6 +235,10 @@ def build_graph(saved, prefix, nodes=None):
         graph['dc_motion_video'] = dict(class_type='LoadVideo', inputs=dict(file=motion['comfy_image']))
         graph['dc_motion_frames'] = dict(class_type='GetVideoComponents', inputs=dict(video=['dc_motion_video', 0]))
         encoder['ref_videos.ref_video_0'] = ['dc_motion_frames', 0]
+        if swap and swap_mode=='motion':
+            dims=image_dimensions(saved.get('swap_ratio',saved['ratio']),saved['megapixels'],minimum=.2)
+            graph['dc_tara_guide'] = dict(class_type='ImageScale',inputs=dict(image=['dc_motion_frames',0],upscale_method='lanczos',width=max(32,dims['width']//64*32),height=max(32,dims['height']//64*32),crop='disabled'))
+            encoder['ref_videos.ref_video_0']=['dc_tara_guide',0]
         if saved.get('studio_app') == 'second-take' and saved.get('swap_source', {}).get('audio'):
             schema = (nodes or {}).get('MiniMaxH3ReferenceToVideo', {}).get('input', {})
             if nodes is None or any('ref_video_audios' in fields for fields in schema.values() if isinstance(fields, dict)):
@@ -211,12 +262,27 @@ def build_graph(saved, prefix, nodes=None):
     frames = round(saved['duration'] * 24)
     frames += (5 - frames) % 17
     encoder.update(prompt=prompt, **image_dimensions(saved.get('swap_ratio', saved['ratio']), saved['megapixels'], minimum=.2), length=frames, ref_image_size='match')
+    if swap and swap_mode=='character-2':
+        if not saved.get('motion_reference'):raise ValueError('Character Swap 2 needs the source video.')
+        if nodes is not None and 'MiniMaxH3AddGuide' not in nodes:raise ValueError('Character Swap 2 requires MiniMax H3 Add Guide.')
+        encoder.pop('ref_videos.ref_video_0',None)
+        paired=encoder.pop('ref_video_audios.ref_video_audio_0',None)
+        if paired is not None:encoder.setdefault('ref_audios.ref_audio_0',paired)
+        graph['dc_swap_guide']=dict(class_type='ImageScale',inputs=dict(image=['dc_motion_frames',0],upscale_method='lanczos',width=encoder['width'],height=encoder['height'],crop='disabled'))
+        graph['dc_swap_addguide']=dict(class_type='MiniMaxH3AddGuide',inputs=dict(positive=['136',0],latent=['136',1],vae=['119',0],image=['dc_swap_guide',0],frame_idx=0))
+        graph['126']['inputs']['conditioning']=['dc_swap_addguide',0]
+        # Add Guide returns CONDITIONING only; the AV latent stays at ReferenceToVideo.
+        graph['125']['inputs']['latent_image']=['136',1]
+        prompt=prompt.replace('<Video 1>','the guide video')
+        if not prompt.lstrip().startswith('body_swap:'):prompt='body_swap:\n'+prompt
+        encoder['prompt']=prompt
     graph['129']['inputs']['noise_seed'] = saved['seed']
     graph['124']['inputs']['steps'] = 8
     selflift.attach(graph,saved,nodes)
     graph['92']['inputs']['filename_prefix'] = prefix
-    if saved.get('studio_app')!='second-take' and saved.get('prompt_enhancer'):
+    if saved.get('prompt_enhancer'):
         video_prompt.attach(graph,prompt,saved.get('enhancer_model',''),saved['seed'],saved['duration'],nodes or {},[f'h3_reference_{i}' for i in range(len(refs))])
     result=prune(graph,'92')
     result.update({key:node for key,node in graph.items() if node['class_type']=='PreviewAny' and key.startswith('dc_')})
+    validate_graph_links(result,nodes)
     return result, prompt

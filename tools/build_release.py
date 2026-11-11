@@ -64,8 +64,10 @@ def stage():
     for item in catalogs:
         source=ROOT/'workflows'/item['graph'];target=STAGE/'workflows'/item['graph'];target.parent.mkdir(parents=True,exist_ok=True);shutil.copy2(source,target)
     (STAGE/'workflows/catalog.json').write_text(json.dumps(catalogs,indent=2),encoding='utf-8')
+    from openframe.video import PRESETS,TARA_PRESETS
+    active_video=set(PRESETS.values())|set(TARA_PRESETS.values())|{'rtx-upscale.api.json','fasth3-pdd-loader.patch'}
     for path in (ROOT/'workflows/video').iterdir():
-        if path.name.endswith('.api.json') or path.suffix=='.patch':
+        if path.name in active_video:
             target=STAGE/'workflows/video'/path.name;target.parent.mkdir(parents=True,exist_ok=True);shutil.copy2(path,target)
     for path in (ROOT/'docs/prompt-guides').iterdir():
         if not path.is_file():continue

@@ -39,7 +39,7 @@ def attach_loras(graph, rows, nodes=None):
         for row in active:
             if row['name'] not in installed['files']:
                 raise ValueError('LoRA not installed: ' + row['name'])
-    loader = next(key for key, node in graph.items() if node['class_type'] in ('UNETLoader', 'UnetLoaderGGUF'))
+    loader = next(key for key, node in graph.items() if node['class_type'] in ('UNETLoader', 'UnetLoaderGGUF','HyperFlowLoader'))
     previous = [loader, 0]
     stack = {}
     for index, row in enumerate(active):

@@ -1,5 +1,5 @@
 {
-  "verified_on": "2026-10-27",
+  "verified_on": "2026-11-11",
   "models": [
     {
       "id": "qwen-diff-bf16",
@@ -766,6 +766,40 @@
       "note": "",
       "aliases": [],
       "source": "https://huggingface.co/Comfy-Org/sam3.1"
+    },
+    {
+      "id": "h3-motion-transfer-tara",
+      "scope": "video",
+      "role": "character_swap",
+      "variant": "TARA Motion Transfer v1.0",
+      "repo": "Alissonerdx/Minimax-H3-ComfyUI",
+      "revision": "db85bdf94ef5ba2467787f1e4704588fce3cabbd",
+      "path": "loras/minimax_h3_motion_transfer_tara_v1.0_ref2va.safetensors",
+      "filename": "minimax_h3_motion_transfer_tara_v1.0_ref2va.safetensors",
+      "folder": "loras",
+      "size": 126417912,
+      "sha256": "aca0a0c10387ba9715fc01378b9051d9c0733838a388cb4215d829f6c41d0f35",
+      "unofficial": true,
+      "note": "Separate upstream adapter license; see source.",
+      "aliases": [],
+      "source": "https://huggingface.co/Alissonerdx/Minimax-H3-ComfyUI"
+    },
+    {
+      "id": "h3-character-swap-v11",
+      "scope": "video",
+      "role": "character_swap",
+      "variant": "Character Swap 2 v1.1",
+      "repo": "Alissonerdx/Minimax-H3-ComfyUI",
+      "revision": "db85bdf94ef5ba2467787f1e4704588fce3cabbd",
+      "path": "loras/minimax_h3_character_swap_v1.1_ref2va_fro.safetensors",
+      "filename": "minimax_h3_character_swap_v1.1_ref2va_fro.safetensors",
+      "folder": "loras",
+      "size": 80673112,
+      "sha256": "ab21167bed71db99ac09527ad1f26f5f3517687ebf2e1f1bd5e91cc0bdf9b9c3",
+      "unofficial": true,
+      "note": "Separate upstream adapter license; see source.",
+      "aliases": [],
+      "source": "https://huggingface.co/Alissonerdx/Minimax-H3-ComfyUI"
     }
   ],
   "unavailable": [

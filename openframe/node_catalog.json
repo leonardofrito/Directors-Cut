@@ -61,5 +61,17 @@
       "H3MontagePeople"
     ],
     "folder": "comfyui-h3-oneclick-swap"
+  },
+  {
+    "id": "bfs-h3",
+    "repo": "alisson-anjos/ComfyUI-BFSNodes",
+    "revision": "9dcb9e4d0827864d75fe2d94c7e48fe36735112b",
+    "url": "https://codeload.github.com/alisson-anjos/ComfyUI-BFSNodes/zip/9dcb9e4d0827864d75fe2d94c7e48fe36735112b",
+    "sha256": "785ca80db3b92007591f9d5d12cc4eb5b2381f5d37802bdd1fd2a9018f9168d1",
+    "size": 14492807,
+    "nodes": [
+      "BFSMiniMaxH3NativeTemporal"
+    ],
+    "folder": "ComfyUI-BFSNodes"
   }
 ]

@@ -17,3 +17,7 @@ Sections V.2/V.5 require downstream terms and safeguards for products offering H
 Source: https://huggingface.co/MiniMaxAI/MiniMax-H3/raw/main/LICENSE
 
 SHA-256: `59b99642b95ea21630e311198ddbfffbfe05aadba0c2f5d884cbdf4efcc90f44`
+
+## Second Take community adapters
+
+M and C2 download the Alissonerdx TARA and Character Swap adapters. These carry separate upstream community licenses, including restrictions on hosted model services and attribution requirements for some commercial organizations. Read the pinned repository’s [license index](https://huggingface.co/Alissonerdx/Minimax-H3-ComfyUI/blob/db85bdf94ef5ba2467787f1e4704588fce3cabbd/LICENSES.md) before use. C1 follows the [Akatz model terms](https://huggingface.co/akatz-ai/MiniMax-H3-Character-Swap-LoRA). Adapter terms do not replace MiniMax H3’s terms or the application’s MIT license. Weights remain separate downloads.

@@ -1,6 +1,6 @@
 /* Shared, explicit model acquisition for the existing engine file selectors. */
 (()=>{
- let catalog={models:[],unavailable:[]},jobs=[],loading=false,swapAttempted=false,swapStarting=false;const active=new Set(['queued','downloading','verifying']);
+ let catalog={models:[],unavailable:[]},jobs=[],loading=false,swapAllStarting=null;const active=new Set(['queued','downloading','verifying']);
  const basename=value=>String(value||'').replaceAll('\\','/').split('/').at(-1);
  const size=n=>n?`${(n/1e9).toFixed(n>=1e10?1:2)} GB`:'';
  const matching=(scope,role,format)=>catalog.models.filter(m=>(m.scope===scope||(scope==='video'&&['h3','omni'].includes(m.scope))||(scope==='shared'&&m.role==='enhancer'&&m.shared))&&m.role===role&&(!format||!['diffusion','encoder'].includes(role)||(m.filename.endsWith('.gguf')?'gguf':'standard')===format));
@@ -88,9 +88,23 @@
    if(installed){config=await api('/config');populateWorkflows();await refresh();document.dispatchEvent(new Event('swap-adapter-update'));toast('Model installed. Ready to select.');}
   }catch{}
  }
- const swapId='h3-character-swap-v15';
- function swapStatus(){const model=catalog.models.find(m=>m.id===swapId),job=jobs.find(j=>j.id===swapId),listed=(config?.video?.loras?.files||[]).some(file=>basename(file)==='h3_character_swap_v1.5.safetensors');return {installed:Boolean(listed||model?.installed||job?.status==='installed'),model,job,error:model?.download_error||job?.error||''};}
- async function ensureSwap(retry=false){let status=swapStatus();if(status.installed||swapStarting||!retry&&swapAttempted)return status;if(!status.model)return status;swapAttempted=true;if(status.error&&!retry)return status;swapStarting=true;try{const result=await api('/models/downloads','POST',{id:swapId});jobs=jobs.filter(j=>j.id!==swapId);jobs.push(result);document.dispatchEvent(new Event('swap-adapter-update'));return swapStatus();}catch(error){jobs=jobs.filter(j=>j.id!==swapId);jobs.push({id:swapId,status:'failed',error:error.message});return swapStatus();}finally{swapStarting=false;}}
- window.DirectorModelDownloads={swapStatus,ensureSwap,options,decorate,unavailable,formatTabs,sharedValue,renderShared,preset:file=>catalog.models.find(m=>m.role==='diffusion'&&m.filename===basename(file))?.scope==='omni'?'fast-omni':null,refresh};
+ const swapFiles=new Map([
+  ['minimax_h3_motion_transfer_tara_v1.0_ref2va.safetensors','h3-motion-transfer-tara'],
+  ['h3_character_swap_v1.5.safetensors','h3-character-swap-v15'],
+  ['minimax_h3_character_swap_v1.1_ref2va_fro.safetensors','h3-character-swap-v11']]);
+ const swapAttempts=new Set(),swapRequests=new Map();
+ function swapStatus(file=window.DirectorSwap?.loraName||swapFiles.keys().next().value){const id=swapFiles.get(basename(file)),model=catalog.models.find(m=>m.id===id),job=jobs.find(j=>j.id===id),listed=(config?.video?.loras?.files||[]).some(f=>basename(f)===basename(file));return {installed:Boolean(listed||model?.installed||job?.status==='installed'),model,job,error:job?.error||model?.download_error||''};}
+ async function ensureSwap(retry=false,file=window.DirectorSwap?.loraName||swapFiles.keys().next().value){
+  const id=swapFiles.get(basename(file));if(!id)return swapStatus(file);
+  if(swapRequests.has(id))return swapRequests.get(id);
+  const status=swapStatus(file);if(status.installed||active.has(status.job?.status)||!retry&&swapAttempts.has(id)||!status.model)return status;
+  swapAttempts.add(id);if(status.error&&!retry)return status;
+  const task=(async()=>{try{const result=await api('/models/downloads','POST',{id});jobs=jobs.filter(j=>j.id!==id);jobs.push(result);}catch(error){jobs=jobs.filter(j=>j.id!==id);jobs.push({id,status:'failed',error:error.message});}finally{swapRequests.delete(id);document.dispatchEvent(new Event('swap-adapter-update'));}return swapStatus(file);})();swapRequests.set(id,task);return task;
+ }
+ async function ensureSwapAll(){
+  if(swapAllStarting)return swapAllStarting;
+  swapAllStarting=(async()=>{try{catalog=await api('/models/catalog');jobs=catalog.jobs||[];for(const file of swapFiles.keys())await ensureSwap(false,file);document.dispatchEvent(new Event('swap-adapter-update'));}catch(error){toast('Could not check Second Take downloads: '+error.message);}finally{swapAllStarting=null;}})();return swapAllStarting;
+ }
+ window.DirectorModelDownloads={swapStatus,ensureSwap,ensureSwapAll,options,decorate,unavailable,formatTabs,sharedValue,renderShared,preset:file=>catalog.models.find(m=>m.role==='diffusion'&&m.filename===basename(file))?.scope==='omni'?'fast-omni':null,refresh};
  document.addEventListener('DOMContentLoaded',()=>{setupShared();refresh();for(const id of ['refresh-models','video-refresh-models'])document.getElementById(id)?.addEventListener('click',refresh);setInterval(poll,2000);});
 })();

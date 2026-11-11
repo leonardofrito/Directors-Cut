@@ -1049,40 +1049,63 @@ function droppedImageURL(transfer){
   }
   return uri||transfer.getData('text/plain').trim();
 }
-// External files, browser image drags and clipboard bitmaps share asset references.
+// One image drop surface: create a named asset on the left, references on the right.
 (() => {
-  const overlay=document.createElement('div');overlay.id='reference-drop-zone';overlay.hidden=true;overlay.setAttribute('aria-hidden','true');
-  overlay.innerHTML='<div><span class="reference-drop-icon" aria-hidden="true">＋</span><strong>Drop images to add references</strong><span>PNG · JPEG · WebP · Web images</span></div>';
-  document.body.append(overlay);let depth=0,internalDrag=false;
-  const fileDrag=event=>Array.from(event.dataTransfer?.types||[]).includes('Files');
-  const imageDrag=event=>!internalDrag&&Array.from(event.dataTransfer?.types||[]).some(type=>['Files','text/html','text/uri-list'].includes(type));
-  const available=()=>creationMode==='asset'&&!window.DirectorVideo?.active&&Boolean(currentShot())&&!referenceUploadBusy&&!document.querySelector('dialog[open]');
+  const overlay=document.createElement('div');overlay.id='reference-drop-zone';overlay.className='image-drop-split';overlay.hidden=true;overlay.setAttribute('aria-hidden','true');
+  overlay.innerHTML='<div data-drop="asset"><span class="reference-drop-icon">＋</span><strong>Create asset</strong></div><div data-drop="reference"><span class="reference-drop-icon">＋</span><strong>Use as reference</strong></div>';document.body.append(overlay);
+  const dialog=document.createElement('dialog');dialog.className='image-import-name';dialog.innerHTML='<form><input type="text" maxlength="120" required aria-label="Asset name" placeholder="Asset name"><button type="submit" class="primary">Add</button></form>';document.body.append(dialog);
+  let naming=null,importing=false,depth=0,internalDrag=false;
+  const input=dialog.querySelector('input');
+  function finishName(value){const done=naming;naming=null;dialog.close();done?.(value);}
+  dialog.querySelector('form').onsubmit=e=>{e.preventDefault();if(input.value.trim())finishName(input.value.trim());};dialog.oncancel=e=>{e.preventDefault();finishName(null);};dialog.onclick=e=>{if(e.target===dialog)finishName(null);};
+  function nameAsset(value){return new Promise(resolve=>{naming=resolve;input.value=value;dialog.showModal();input.focus();input.select();});}
+  const imageFile=f=>/^image\/(png|jpeg|webp)$/i.test(f.type)||(!f.type&&/\.(png|jpe?g|webp)$/i.test(f.name));
+  const videoMode=()=>Boolean(window.DirectorVideo?.active)&&window.DirectorApps?.id!=='second-take';
+  const available=()=>project&&window.DirectorApps?.id!=='second-take'&&(videoMode()?DirectorVideo.currentShot:currentShot())&&!importing&&!referenceUploadBusy&&!document.querySelector('dialog[open]');
+  const imageDrag=e=>!internalDrag&&(Array.from(e.dataTransfer?.items||[]).some(i=>i.kind==='file'&&/^image\/(png|jpeg|webp)$/i.test(i.type))||Array.from(e.dataTransfer?.files||[]).some(imageFile)||Array.from(e.dataTransfer?.types||[]).some(t=>['text/html','text/uri-list'].includes(t)));
   function clear(){depth=0;overlay.hidden=true;document.body.classList.remove('reference-drop-active');}
-  function show(){overlay.hidden=false;document.body.classList.add('reference-drop-active');}
-  document.addEventListener('dragstart',()=>{internalDrag=true;});
-  document.addEventListener('dragenter',event=>{if(!imageDrag(event))return;event.preventDefault();if(available()){depth++;show();}});
-  document.addEventListener('dragover',event=>{if(!imageDrag(event))return;event.preventDefault();event.dataTransfer.dropEffect=available()?'copy':'none';if(available())show();else clear();});
-  document.addEventListener('dragleave',event=>{if(overlay.hidden)return;depth=Math.max(0,depth-1);if(!depth||(!event.relatedTarget&&(event.target===document||event.target===document.documentElement)))clear();});
-  document.addEventListener('drop',event=>{
-    const isImage=imageDrag(event);if(!isImage&&!fileDrag(event)){clear();return;}
-    event.preventDefault();const canUpload=available()&&isImage,files=Array.from(event.dataTransfer.files||[]),url=droppedImageURL(event.dataTransfer);clear();internalDrag=false;
-    if(!canUpload)return;
-    event.stopPropagation();const projectId=project.id,studyId=shotId;
-    if(files.length){safe(()=>uploadReferenceFiles(files,projectId,studyId));return;}
-    if(/^https?:\/\//i.test(url)){safe(()=>uploadWebReference(url,projectId,studyId));return;}
-    if(/^data:image\/(png|jpeg|webp)[;,]/i.test(url)&&url.length<46*1024*1024){
-      safe(async()=>{const blob=await (await fetch(url)).blob();await uploadReferenceFiles([new File([blob],'web-reference.'+(blob.type==='image/jpeg'?'jpg':blob.type.split('/')[1]),{type:blob.type})],projectId,studyId);});return;
+  function show(event){overlay.hidden=false;document.body.classList.add('reference-drop-active');const target=event.clientX<innerWidth/2?'asset':'reference';for(const side of overlay.children)side.classList.toggle('is-target',side.dataset.drop===target);}
+  async function accept(files,url,side){
+    const pid=project.id,video=videoMode(),sid=video?DirectorVideo.currentShot.id:shotId;
+    const stillHere=()=>project?.id===pid&&videoMode()===video&&(video?DirectorVideo.currentShot?.id:shotId)===sid;
+    files=files.filter(imageFile);
+    if(!files.length&&!/^https?:\/\//i.test(url)&&!/^data:image\/(png|jpeg|webp)[;,]/i.test(url)){toast('Drop PNG, JPEG or WebP images.');return;}
+    if(files.some(f=>f.size>32*1024*1024)){toast('Choose images up to 32 MB.');return;}
+    if(!video&&side==='reference'){
+      if(files.length)return uploadReferenceFiles(files,pid,sid);
+      if(/^https?:/i.test(url))return uploadWebReference(url,pid,sid);
+      if(url.length>46*1024*1024)throw new Error('Image is too large.');
+      const blob=await(await fetch(url)).blob();return uploadReferenceFiles([new File([blob],'reference.png',{type:blob.type})],pid,sid);
     }
-    toast('Copy the image with Ctrl+C, then paste it here with Ctrl+V, or save it first.');
-  });
-  document.addEventListener('paste',event=>{
-    if(!available())return;
-    const files=Array.from(event.clipboardData?.items||[]).filter(item=>item.kind==='file'&&/^image\/(png|jpeg|webp)$/i.test(item.type)).map(item=>item.getAsFile()).filter(Boolean);
-    if(!files.length)return; // Ordinary pasted text keeps its normal behavior.
-    event.preventDefault();const projectId=project.id,studyId=shotId;safe(()=>uploadReferenceFiles(files,projectId,studyId));
-  });
-  window.addEventListener('dragend',()=>{internalDrag=false;clear();});window.addEventListener('blur',()=>{internalDrag=false;clear();});
-  document.addEventListener('visibilitychange',()=>{if(document.hidden){internalDrag=false;clear();}});
+    if(video&&side==='reference'&&DirectorVideo.referenceIds().length+(files.length||1)>9){toast('H3 supports up to 9 image references.');return;}
+    importing=true;
+    try{
+      if(!files.length&&/^data:image/i.test(url)){if(url.length>46*1024*1024)throw new Error('Image is too large.');const blob=await(await fetch(url)).blob();files=[new File([blob],'Image.png',{type:blob.type})];}
+      for(const file of files.length?files:[null]){
+        const name=await nameAsset(file?.name.replace(/\.[^.]+$/,'').replace(/[_-]+/g,' ')||'New asset');if(!name)return;
+        let asset;
+        if(file){const body=new FormData();body.append('name',name);body.append('kind','character');body.append('image',file);const response=await fetch(`/api/projects/${pid}/assets`,{method:'POST',body});asset=await response.json();if(!response.ok)throw new Error(asset.error||'Image import failed.');}
+        else asset=await api(`/projects/${pid}/assets`,'POST',{name,kind:'character',url});
+        if(stillHere()){
+          project=await api(`/projects/${pid}`);
+          if(video&&side==='reference')DirectorVideo.useAsset(asset);
+          if(video)DirectorVideo.render(project);else render();
+        }
+      }
+      toast(video&&side==='reference'?'Asset added as a reference.':'Asset added.');
+    }finally{importing=false;}
+  }
+  document.addEventListener('dragstart',()=>{internalDrag=true;},true);
+  for(const type of ['dragenter','dragover'])document.addEventListener(type,event=>{
+    if(!imageDrag(event)||!available())return;event.preventDefault();event.stopImmediatePropagation();event.dataTransfer.dropEffect='copy';if(type==='dragenter')depth++;show(event);
+  },true);
+  document.addEventListener('dragleave',event=>{if(overlay.hidden)return;depth=Math.max(0,depth-1);if(!depth||!event.relatedTarget)clear();},true);
+  document.addEventListener('drop',event=>{
+    if(!imageDrag(event)||!available()){clear();return;}
+    event.preventDefault();event.stopImmediatePropagation();const files=Array.from(event.dataTransfer.files||[]),url=droppedImageURL(event.dataTransfer),side=event.clientX<innerWidth/2?'asset':'reference';clear();internalDrag=false;safe(()=>accept(files,url,side));
+  },true);
+  document.addEventListener('paste',event=>{if(!available())return;const files=Array.from(event.clipboardData?.items||[]).filter(i=>i.kind==='file'&&/^image\/(png|jpeg|webp)$/i.test(i.type)).map(i=>i.getAsFile()).filter(Boolean);if(!files.length)return;event.preventDefault();safe(()=>accept(files,'','reference'));});
+  window.addEventListener('dragend',()=>{internalDrag=false;clear();});window.addEventListener('blur',()=>{internalDrag=false;clear();});document.addEventListener('visibilitychange',()=>{if(document.hidden){internalDrag=false;clear();}});
 })();
 $('library-kind').onchange=()=>renderLibrary(true);$('library-search').oninput=()=>renderLibrary(true);
 $('library-source').onchange=()=>safe(async()=>{const version=++libraryLoadVersion;librarySource=$('library-source').value;libraryAssets=[];renderLibrary(true);if(librarySource){const assets=await api(`/projects/${librarySource}/assets`);if(version===libraryLoadVersion){libraryAssets=assets;renderLibrary(true);}}});

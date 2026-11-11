@@ -16,6 +16,7 @@ from .loras import attach_loras
 from .presets import aperture_prompt, STYLE, CAMERAS, RATIOS, OPTICS, LIGHTING, FILM, GRADE, FRAMING, LENS_TYPES, SENSORS, LIGHT_COLORS
 from .enhancer import attach, usable_caption
 import aiohttp
+import httpx
 
 
 RESOLUTION_RATIOS = {
@@ -140,6 +141,22 @@ class GenerationCancelled(Exception):
     pass
 
 
+async def retry_job_transport(operation, update, *, downloading=False):
+    """Reconnect to an already-known job; never resubmit inference on timeout."""
+    attempts=0
+    while True:
+        try:
+            result=await operation()
+            if attempts:await update(connection_retry=False)
+            return result
+        except (httpx.TransportError, asyncio.TimeoutError) as exc:
+            attempts+=1
+            await update(status='downloading' if downloading else 'running',sampling=False,
+                         connection_retry=True,stage='Connection interrupted · Reconnecting to the same job',
+                         connection_error=type(exc).__name__)
+            await asyncio.sleep(min(10,2*attempts))
+
+
 class ComfyProvider:
     def __init__(self):
         from .engine_config import current, apply_environment
@@ -151,7 +168,7 @@ class ComfyProvider:
         await job.cancel()
 
     async def generate(self, graph, target, update, existing_id=None):
-        job = await self.client.jobs.get(existing_id) if existing_id else await self.client.submit(self.client.workflows.from_json(graph))
+        job = await retry_job_transport(lambda: self.client.jobs.get(existing_id), update) if existing_id else await self.client.submit(self.client.workflows.from_json(graph))
         await update(job_id=job.id, status=job.status)
         # Polling is authoritative; missing live events must never stall a job.
         async def events():
@@ -166,7 +183,7 @@ class ComfyProvider:
         stream = asyncio.create_task(events())
         try:
             while True:
-                await job.refresh()
+                await retry_job_transport(job.refresh, update)
                 await update(status='downloading' if job.status == 'succeeded' else 'running' if job.status == 'canceling' else job.status)
                 if job.status in ('succeeded', 'failed', 'canceled', 'cancelled'):
                     break
@@ -179,7 +196,7 @@ class ComfyProvider:
             outputs = job.get_outputs(output_id)
             if not outputs:
                 raise RuntimeError('ComfyUI completed without a downloadable output.')
-            await outputs[0].to_file(target)
+            await retry_job_transport(lambda: outputs[0].to_file(target), update, downloading=True)
             if 'dc_enhanced_preview' in graph:
                 # The local proxy exposes file assets; text previews live in ComfyUI history.
                 try:

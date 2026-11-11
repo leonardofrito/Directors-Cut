@@ -1,3 +1,14 @@
+# 0.1.0-rc.9 — Second Take and canvas controls
+
+- Second Take modes M / C1 / C2 with automatic downloads of the three missing adapters on entry, verified size/checksum, installed-file reuse and Retry feedback.
+- Reviewed scene-cut suggestions in the source trim dialog. Individual cut revisions and joining remain available.
+- Shared canvas selection, Select all, confirmed red Delete, individual media downloads or ZIP, and destination folders in supported browsers.
+- Split image drops: create a named asset or attach a reference. Video references import a named asset and insert its @handle.
+- Method selector is exclusive to Second Take. Model families, SelfLift choices and reusable settings remain shared.
+- Base, OmniRef and HyperFlow normal generation recipes; HyperFlow is excluded from Second Take. The BFS/TARA pack is available in Workflow nodes.
+
+Character replacement remains experimental. The Windows package is unsigned. Native macOS/Linux packages are not published; source setup remains available. Model licenses are separate from the MIT app license. No GPU generation is required for release verification.
+
 # 0.1.0-rc.8.2 — Interface hotfix
 
 - Thumbnail size control stays fixed in the lower-right corner across workspaces and cut views.

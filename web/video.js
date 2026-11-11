@@ -7,7 +7,7 @@
   let selectedVideoModels={},selectedVideoLoras=[],videoPreferences=null,mentionedIds=new Set();
   let videoDirection={},videoEnhancerModel='';
   try{videoPreferences=JSON.parse(localStorage.getItem('directors-cut-video-engine')||'null');}catch{}
-  if(videoPreferences?.loras)videoPreferences.loras=videoPreferences.loras.filter(row=>!/h3_character_swap/i.test(row.name));
+  if(videoPreferences?.loras)videoPreferences.loras=videoPreferences.loras.filter(row=>!/(?:h3_character_swap|minimax_h3_motion_transfer_tara|minimax_h3_character_swap)/i.test(row.name));
   selectedVideoLoras=structuredClone(videoPreferences?.loras||[]);
   videoEnhancerModel=videoPreferences?.enhancer_model||'';
   const $v=id=>document.getElementById('video-'+id);
@@ -16,9 +16,9 @@
   const scene=()=>scenes().find(s=>s.id===sceneId);
   function normalizeModelRecipe(){
     const filename=selectedVideoModels['127'];if(!filename)return;
-    const family=/fast[-_]?h3.*omni/i.test(filename)?'fast-omni':'original';
+    const family=/hyperflow/i.test(filename)?'hyperflow':/fast[-_]?h3.*omni/i.test(filename)?'fast-omni':'original';
     $v('preset').value=family;
-    if(family==='fast-omni'){delete selectedVideoModels['145'];delete selectedVideoModels['156'];}
+    if(family!=='original'){delete selectedVideoModels['145'];delete selectedVideoModels['156'];}
   }
   function mediaMentions(){
     if(swapMode()){const state=cutEdit?scene()?.drafts.find(d=>d.id===cutEdit.baseId)?.settings:window.DirectorSwap?.peopleState,src=project?.swap_sources?.find(r=>r.id===state?.swap_source_id);return src?[{id:'media-video-1',handle:'video1',name:src.name,thumbnail:src.thumbnail,file:src.file,media:'video'},...(src.audio?[{id:'media-audio-1',handle:'audio1',name:'Source audio',media:'audio'}]:[])]:[];}
@@ -81,7 +81,7 @@
     $v('title').value=s.title;$v('prompt').value=swapMode()?(s.swap_direction||''):(s.prompt||'');$v('ratio').value=s.ratio||'16:9';
     $v('mp').value=String(s.megapixels||.5);$v('duration').value=String(s.duration||5);
     selectedVideoModels={...(!exact&&videoPreferences?videoPreferences.model_files:s.model_files)};
-    selectedVideoLoras=swapMode()?[{name:'h3_character_swap_v1.5.safetensors',strength:1,enabled:true}]:structuredClone((!exact&&videoPreferences?videoPreferences.loras:s.loras)||[]);
+    selectedVideoLoras=swapMode()?[{name:'minimax_h3_motion_transfer_tara_v1.0_ref2va.safetensors',strength:1,enabled:true}]:structuredClone((!exact&&videoPreferences?videoPreferences.loras:s.loras)||[]);
     videoDirection={...(s.video_direction||{})};if(videoDirection.lens==='Halation vintage')delete videoDirection.lens;delete videoDirection.camera;delete videoDirection.sensor;delete videoDirection.palette;delete videoDirection.lighting;delete videoDirection.era;delete videoDirection.genre;videoEnhancerModel=(!exact?(window.DirectorModelDownloads?.sharedValue()||videoPreferences?.enhancer_model):s.enhancer_model)||config?.video?.enhancer?.default||'';$v('enhancer-toggle').checked=Boolean(s.prompt_enhancer);
     $v('preset').value=(!exact&&videoPreferences?videoPreferences.video_preset:s.video_preset)||'fast-omni';normalizeModelRecipe();refs=[...(s.reference_ids||[])];mentionedIds=new Set();syncMentionReferences();dirty=false;pending=null;
   }
@@ -122,7 +122,7 @@
     const ready=selectedReadiness();if(submitting||loading||motionUploading||audioUploading||!scene()||!ready?.ready||(swapMode()?!DirectorSwap.ready():!$v('prompt').value.trim()))return;
     submitting=true;render(project);
     try{
-      if(swapMode()&&!await DirectorSwapPeople.prepareGeneration())return;
+      if(swapMode()&&!DirectorSwap.ready())return;
       await save();const data=capture(),signature=JSON.stringify(data);
       if(!pending||pending.signature!==signature)pending={signature,id:submissionId()};
       const projectId=pid,id=sceneId;
@@ -266,7 +266,7 @@
     try{
       const seed=window.DirectorSeeds?.get('second-take')??-1,seed_mode=window.DirectorSeeds?.mode('second-take')||'random';
       if(project.shots.find(s=>s.id===context.sid)?.drafts.find(d=>d.id===context.id)?.postprocess?.type==='rtx-upscale')throw new Error('RTX cuts are processed automatically. Regenerate the original swap instead.');
-      const data={index,finish,prompt:finish?undefined:$v('prompt').value,choices:{...context.choices},seed,...(!finish?{engine:{video_preset:$v('preset').value,model_files:{...selectedVideoModels},selflift:$v('selflift').checked}}:{})},signature=JSON.stringify([context.baseId,data]);if(context.pending?.signature!==signature)context.pending={signature,id:submissionId()};
+      const data={index,finish,prompt:finish?undefined:$v('prompt').value,choices:{...context.choices},seed,...(!finish?{engine:{video_preset:$v('preset').value,model_files:{...selectedVideoModels},selflift:$v('selflift').checked,swap_mode:DirectorSwap.mode}}:{})},signature=JSON.stringify([context.baseId,data]);if(context.pending?.signature!==signature)context.pending={signature,id:submissionId()};
       const result=await api(`/projects/${context.pid}/shots/${context.sid}/drafts/${context.baseId}/cuts/regenerate`,'POST',{...data,request_id:context.pending.id});context.pending=null;
       if(!finish)window.DirectorSeeds?.advance('second-take',1,{seed,seed_mode});
       if(!finish)(context.autoChoices||={})[index]=result.id;
@@ -487,17 +487,20 @@
     const menu=$v('choice-menu'),trigger=choice&&$v('choose-'+choice);
     if(menu.contains(document.activeElement))trigger?.focus({preventScroll:true});
     choice=null;window.DirectorControls.closeChoices(menu);
-    for(const id of ['frame','size','duration'])$v('choose-'+id).setAttribute('aria-expanded','false');
+    for(const id of ['frame','size','duration','mode'])$v('choose-'+id).setAttribute('aria-expanded','false');
   }
   function updateChoices(){
+    $v('choose-mode').hidden=!swapMode();
     $v('choose-seed').disabled=loading||submitting;
     $v('frame-value').textContent=$v('ratio').value;$v('size-value').textContent=Number($v('mp').value)+' MP';$v('duration-value').textContent=$v('duration').value+'s';
-    for(const id of ['frame','size','duration'])$v('choose-'+id).disabled=loading||submitting;
+    for(const id of ['frame','size','duration','mode'])$v('choose-'+id).disabled=loading||submitting;
   }
   function showChoices(kind){
+    if(kind==='mode'&&!swapMode()){closeChoices();return;}
     if(choice===kind){closeChoices();return;}choice=kind;const menu=$v('choice-menu');menu.replaceChildren();
-    for(const id of ['frame','size','duration'])$v('choose-'+id).setAttribute('aria-expanded',String(id===kind));
-    if(swapMode()&&kind==='duration')DirectorSwap.durationChoices(menu);
+    for(const id of ['frame','size','duration','mode'])$v('choose-'+id).setAttribute('aria-expanded',String(id===kind));
+    if(swapMode()&&kind==='mode')DirectorSwap.modeChoices(menu);
+    else if(swapMode()&&kind==='duration')DirectorSwap.durationChoices(menu);
     else if(kind==='frame')window.DirectorControls.ratioChoices(menu,$v('ratio').value,value=>{$v('ratio').value=value;changed();});
     else window.DirectorControls.sliderChoices(menu,{kind,value:$v(kind==='size'?'mp':'duration').value,
       min:kind==='size'?.2:2,max:kind==='size'?2:30,step:kind==='size'?.1:1,
@@ -570,13 +573,15 @@
   $v('mentions').addEventListener('mouseleave',()=>{if(document.activeElement!==$v('prompt'))$v('mentions').hidden=true;});
 
   function saveVideoPreferences(){
-    videoPreferences={video_preset:$v('preset').value,model_files:{...selectedVideoModels},loras:structuredClone(selectedVideoLoras.filter(row=>! /h3_character_swap/i.test(row.name))),selflift:$v('selflift').checked,enhancer_model:videoEnhancerModel};
+    videoPreferences={video_preset:$v('preset').value,model_files:{...selectedVideoModels},loras:structuredClone(selectedVideoLoras.filter(row=>! /(?:h3_character_swap|minimax_h3_motion_transfer_tara|minimax_h3_character_swap)/i.test(row.name))),selflift:$v('selflift').checked,enhancer_model:videoEnhancerModel};
     localStorage.setItem('directors-cut-video-engine',JSON.stringify(videoPreferences));
   }
   function selectedReadiness(){
     const profile=config?.video?.presets?.[$v('preset').value];if(!profile?.loaders)return profile;
     const files=active?selectedVideoModels:(videoPreferences?.model_files||selectedVideoModels);
-    const missing=[...(profile.fixed_missing||[]),...profile.loaders.filter(loader=>!loader.options.includes(files[loader.node]||loader.default)).map(loader=>'File: '+(files[loader.node]||loader.default)),...selectedVideoLoras.filter(row=>row.enabled&&row.strength!==0&&!config?.video?.loras?.files?.includes(row.name)).map(row=>'LoRA: '+row.name)];
+    const readinessLoras=swapMode()?[{name:DirectorSwap.loraName,enabled:true,strength:1}]:selectedVideoLoras;
+    const missing=[...(profile.fixed_missing||[]),...profile.loaders.filter(loader=>!loader.options.includes(files[loader.node]||loader.default)).map(loader=>'File: '+(files[loader.node]||loader.default)),...readinessLoras.filter(row=>row.enabled&&row.strength!==0&&!config?.video?.loras?.files?.includes(row.name)).map(row=>'LoRA: '+row.name)];
+    if(swapMode()&&$v('preset').value==='hyperflow')missing.push('HyperFlow does not support Character Swap. Choose Base or OmniRef.');
     if($v('selflift').checked&&!config?.video?.selflift?.ready)missing.push('Install SelfLift in Connection → Workflow nodes and restart ComfyUI.');
     return {...profile,ready:!missing.length,missing};
   }
@@ -585,20 +590,23 @@
     $v('selflift-status').textContent=config?.video?.selflift?.ready?'':'Install the optional SelfLift node under Connection → Workflow nodes.';
     if(!active&&videoPreferences){$v('preset').value=videoPreferences.video_preset||'original';selectedVideoModels={...videoPreferences.model_files};}
     normalizeModelRecipe();
+    const hyper=$v('preset').querySelector('option[value=hyperflow]');if(hyper)hyper.disabled=swapMode();
+    for(const b of document.querySelectorAll('[data-video-family]')){b.setAttribute('aria-pressed',String(b.dataset.videoFamily===$v('preset').value));b.disabled=swapMode()&&b.dataset.videoFamily==='hyperflow';}
+    $v('family-note').textContent=$v('preset').value==='hyperflow'?'HyperFlow does not support Character Swap.':'';
     const profile=selectedReadiness(),root=$v('model-files');
     const stamp=JSON.stringify([$v('preset').value,profile?.loaders,selectedVideoModels,config?.video?.models,window.DirectorModelDownloads?.options('video','diffusion',[]).map(o=>o.textContent)]);
-    if(root.dataset.stamp!==stamp){root.dataset.stamp=stamp;root.replaceChildren(...(profile?.loaders||[]).map((loader,index)=>{
+    if(root.dataset.stamp!==stamp){root.dataset.stamp=stamp;root.replaceChildren(...(profile?.loaders||[]).filter(loader=>!['145','156'].includes(loader.node)).map((loader,index)=>{
       const box=document.createElement('div');box.className='model-file';const label=document.createElement('label');label.textContent=loader.role;label.htmlFor='video-model-file-'+index;
       const select=document.createElement('select');select.id=label.htmlFor;const chosen=selectedVideoModels[loader.node]||loader.default;
-      const options=loader.node==='127'&&config?.video?.models?config.video.models.map(m=>m.file):loader.options;
+      const options=loader.options;
       const role=({'127':'diffusion','128':'encoder','119':'video_vae','120':'audio_vae','145':'acceleration'})[loader.node];
       const downloads=window.DirectorModelDownloads;
-      select.replaceChildren(...(downloads&&role?[...downloads.options('video',role,options),...downloads.unavailable('h3',role)]:options.map(file=>new Option(file,file))));
+      select.replaceChildren(...(downloads&&role&&loader.node!=='127'?[...downloads.options('video',role,options),...downloads.unavailable('h3',role)]:options.map(file=>new Option(file,file))));
       if(![...select.options].some(o=>o.value===chosen))select.append(new Option('Not installed · '+chosen,chosen));select.value=chosen;select.disabled=!select.options.length;
       select.onchange=()=>{
         selectedVideoModels[loader.node]=select.value;
         if(loader.node==='127'){
-          const target=window.DirectorModelDownloads?.preset(select.value)||config.video.models?.find(m=>m.file===select.value)?.preset||'original';$v('preset').value=target;
+          const target=config.video.models?.find(m=>m.file===select.value)?.preset||(/hyperflow/i.test(select.value)?'hyperflow':/omni/i.test(select.value)?'fast-omni':'original');$v('preset').value=target;
           const loaders=config.video.presets[target].loaders;
           selectedVideoModels=Object.fromEntries(loaders.map(row=>[row.node,row.node==='127'?select.value:row.options.includes(selectedVideoModels[row.node])?selectedVideoModels[row.node]:row.default]));
         }
@@ -751,8 +759,8 @@
   $v('enhancer-model').onchange=()=>{videoEnhancerModel=$v('enhancer-model').value;saveVideoPreferences();if(active)changed();else renderSettings();};
   document.addEventListener('shared-enhancer-change',event=>{videoEnhancerModel=event.detail;saveVideoPreferences();if(active)changed();else renderSettings();});
   function renderVideoLoras(){
-    const root=$v('lora-stack'),files=(config?.video?.loras?.files||[]).filter(file=>! /h3_character_swap/i.test(file)),stamp=JSON.stringify([files,selectedVideoLoras]);if(root.dataset.stamp===stamp)return;root.dataset.stamp=stamp;
-    root.replaceChildren(...selectedVideoLoras.map((row,index)=>({row,index})).filter(({row})=>! /h3_character_swap/i.test(row.name)).map(({row,index})=>{
+    const root=$v('lora-stack'),files=(config?.video?.loras?.files||[]).filter(file=>! /(?:h3_character_swap|minimax_h3_motion_transfer_tara|minimax_h3_character_swap)/i.test(file)),stamp=JSON.stringify([files,selectedVideoLoras]);if(root.dataset.stamp===stamp)return;root.dataset.stamp=stamp;
+    root.replaceChildren(...selectedVideoLoras.map((row,index)=>({row,index})).filter(({row})=>! /(?:h3_character_swap|minimax_h3_motion_transfer_tara|minimax_h3_character_swap)/i.test(row.name)).map(({row,index})=>{
       const card=document.createElement('div');card.className='lora-row';
       const enabled=document.createElement('input');enabled.type='checkbox';enabled.checked=row.enabled;enabled.setAttribute('aria-label','Enable video LoRA '+(index+1));
       const select=document.createElement('select');select.setAttribute('aria-label','Video LoRA file');select.append(new Option('Choose H3-compatible LoRA…',''),...files.map(file=>new Option(file,file)));if(row.name&&!files.includes(row.name))select.append(new Option('Missing · '+row.name,row.name));select.value=row.name;
@@ -771,6 +779,7 @@
     catch(error){$v('import-status').textContent=error.message;throw error;}finally{input.value='';}
   });
   for(const id of ['ratio','mp','duration'])$v(id).addEventListener('change',changed);
+  for(const b of document.querySelectorAll('[data-video-family]'))b.onclick=()=>{if(b.disabled)return;$v('preset').value=b.dataset.videoFamily;$v('preset').onchange();};
   $v('preset').onchange=()=>{
     const loaders=config?.video?.presets?.[$v('preset').value]?.loaders;
     if(loaders)selectedVideoModels=Object.fromEntries(loaders.map(loader=>[loader.node,
@@ -795,7 +804,7 @@
   $v('copy-prompt').onclick=()=>safe(async()=>{await navigator.clipboard.writeText($v('prompt-used').textContent);toast('Prompt copied.');});
 
   $v('picker-done').onclick=()=>$v('asset-picker').close();$v('picker-search').oninput=renderPicker;
-  for(const kind of ['frame','size','duration'])$v('choose-'+kind).onclick=()=>showChoices(kind);
+  for(const kind of ['frame','size','duration','mode'])$v('choose-'+kind).onclick=()=>showChoices(kind);
   document.addEventListener('click',event=>{if(!event.target.closest('.video-quick-generation'))closeChoices();});
   document.addEventListener('keydown',event=>{if(event.key==='Escape'){closeChoices();}});
   document.getElementById('tab-video').onclick=()=>safe(enter);

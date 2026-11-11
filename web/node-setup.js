@@ -5,7 +5,7 @@
   if(refreshing)return;refreshing=true;
   try{
    result=await api('/engine/nodes');by('node-automatic').checked=Boolean(result.preferences.automatic);
-   for(const id of ['gguf','vsa','selflift'])by('node-'+id).checked=result.preferences.optional.includes(id);
+   for(const id of ['gguf','vsa','selflift','bfs-h3'])by('node-'+id).checked=result.preferences.optional.includes(id);
    const busy=['queued','installing'].includes(result.job.status),selected=['kjnodes',...result.preferences.optional];by('node-install').disabled=busy||Boolean(result.install_error)||result.packs.filter(p=>selected.includes(p.id)).every(p=>p.installed);
    by('node-setup-status').textContent=result.job.message||result.install_error||'Only missing packs are installed. Existing node versions stay unchanged.';
    by('node-packs').replaceChildren(...result.packs.map(pack=>{
@@ -18,15 +18,15 @@
   finally{refreshing=false;}
  }
  async function save(){
-  const optional=['gguf','vsa','selflift'].filter(id=>by('node-'+id).checked);
+  const optional=['gguf','vsa','selflift','bfs-h3'].filter(id=>by('node-'+id).checked);
   await api('/engine/nodes','PUT',{automatic:by('node-automatic').checked,optional});
   const packs=['kjnodes',...optional];if(by('node-automatic').checked&&result?.packs.some(p=>packs.includes(p.id)&&!p.installed))await api('/engine/nodes/install','POST',{packs});await refresh();
  }
  document.addEventListener('DOMContentLoaded',()=>{
-  const section=document.createElement('section');section.className='workflow-node-settings';section.innerHTML='<h3>Workflow nodes</h3><label class="node-choice"><input id="node-automatic" type="checkbox">Automatically install missing nodes when Director’s Cut starts</label><p class="control-help">Downloads pinned node packs into the configured local ComfyUI and installs their requirements in its own Python. Restart ComfyUI after new nodes are installed.</p><div class="node-optional"><label><input id="node-gguf" type="checkbox"> GGUF</label><label><input id="node-vsa" type="checkbox"> VSA</label><label><input id="node-selflift" type="checkbox"> SelfLift</label></div><div id="node-packs"></div><div class="node-actions"><button id="node-install" type="button">Install missing nodes</button><button id="node-refresh" type="button">Refresh</button></div><p id="node-setup-status" class="control-help" role="status"></p><p id="platform-model-note" class="control-help"></p>';
+  const section=document.createElement('section');section.className='workflow-node-settings';section.innerHTML='<h3>Workflow nodes</h3><label class="node-choice"><input id="node-automatic" type="checkbox">Automatically install missing nodes when Director’s Cut starts</label><p class="control-help">Downloads pinned node packs into the configured local ComfyUI and installs their requirements in its own Python. Restart ComfyUI after new nodes are installed.</p><div class="node-optional"><label><input id="node-gguf" type="checkbox"> GGUF</label><label><input id="node-vsa" type="checkbox"> VSA</label><label><input id="node-selflift" type="checkbox"> SelfLift</label><label><input id="node-bfs-h3" type="checkbox"> Second Take / TARA</label></div><div id="node-packs"></div><div class="node-actions"><button id="node-install" type="button">Install missing nodes</button><button id="node-refresh" type="button">Refresh</button></div><p id="node-setup-status" class="control-help" role="status"></p><p id="platform-model-note" class="control-help"></p>';
   by('connection-settings').append(section);
-  for(const id of ['automatic','gguf','vsa','selflift'])by('node-'+id).onchange=()=>safe(save);
-  by('node-install').onclick=()=>safe(async()=>{await api('/engine/nodes/install','POST',{packs:['kjnodes',...['gguf','vsa','selflift'].filter(id=>by('node-'+id).checked)]});await refresh();});by('node-refresh').onclick=refresh;
+  for(const id of ['automatic','gguf','vsa','selflift','bfs-h3'])by('node-'+id).onchange=()=>safe(save);
+  by('node-install').onclick=()=>safe(async()=>{await api('/engine/nodes/install','POST',{packs:['kjnodes',...['gguf','vsa','selflift','bfs-h3'].filter(id=>by('node-'+id).checked)]});await refresh();});by('node-refresh').onclick=refresh;
   by('settings-connection').addEventListener('click',refresh);
   by('video-selflift').addEventListener('change',()=>safe(async()=>{const enabled=by('video-selflift').checked;await refresh();by('node-selflift').checked=enabled;await save();}));
   setInterval(()=>{if(result&&(['queued','installing'].includes(result.job.status)||by('models-dialog').open&&!by('connection-settings').hidden))refresh();},2500);

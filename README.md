@@ -8,27 +8,27 @@ Create characters, props and locations, then bring them together in reference-dr
 
 ## Download
 
-[**Download for Windows — 0.1.0-rc.8.2**](https://github.com/leonardofrito/Directors-Cut/releases/download/v0.1.0-rc.8.2/DirectorsCut-0.1.0-rc.8.2-windows-x64.exe) · [All release files](https://github.com/leonardofrito/Directors-Cut/releases/tag/v0.1.0-rc.8.2)
+[**Download for Windows — 0.1.0-rc.9**](https://github.com/leonardofrito/Directors-Cut/releases/download/v0.1.0-rc.9/DirectorsCut-0.1.0-rc.9-windows-x64.exe) · [All release files](https://github.com/leonardofrito/Directors-Cut/releases/tag/v0.1.0-rc.9)
 
 | Platform | Available download |
 | --- | --- |
-| Windows x64 | [Download the EXE](https://github.com/leonardofrito/Directors-Cut/releases/download/v0.1.0-rc.8.2/DirectorsCut-0.1.0-rc.8.2-windows-x64.exe) — Python included |
-| macOS | [Download the source package](https://github.com/leonardofrito/Directors-Cut/releases/download/v0.1.0-rc.8.2/DirectorsCut-0.1.0-rc.8.2-source.zip) — native app not published yet |
-| Linux | [Download the source package](https://github.com/leonardofrito/Directors-Cut/releases/download/v0.1.0-rc.8.2/DirectorsCut-0.1.0-rc.8.2-source.zip) — native executable not published yet |
+| Windows x64 | [Download the EXE](https://github.com/leonardofrito/Directors-Cut/releases/download/v0.1.0-rc.9/DirectorsCut-0.1.0-rc.9-windows-x64.exe) — Python included |
+| macOS | [Download the source package](https://github.com/leonardofrito/Directors-Cut/releases/download/v0.1.0-rc.9/DirectorsCut-0.1.0-rc.9-source.zip) — native app not published yet |
+| Linux | [Download the source package](https://github.com/leonardofrito/Directors-Cut/releases/download/v0.1.0-rc.9/DirectorsCut-0.1.0-rc.9-source.zip) — native executable not published yet |
 
-[Quick Start](packaging/QUICKSTART.md) · [Release notes](https://github.com/leonardofrito/Directors-Cut/releases/tag/v0.1.0-rc.8.2)
+[Quick Start](packaging/QUICKSTART.md) · [Release notes](https://github.com/leonardofrito/Directors-Cut/releases/tag/v0.1.0-rc.9)
 
 A compatible ComfyUI installation and model files are required separately. The current Windows build is an unsigned release candidate.
 
 ## Current source
 
-Release rc.8.2 includes Asset Creation, Director’s Cut and Second Take character replacement with per-cut revisions. Explicit swap prompts go directly to H3 without automatic prompt expansion. [Second Take guide](docs/second-take.md).
+Release rc.9 includes Asset Creation, Director’s Cut and Second Take character replacement with per-cut revisions. Second Take includes Motion Transfer, Character Swap 1 and Character Swap 2, with automatic downloads for missing adapters. Prompt enhancement is optional. [Second Take guide](docs/second-take.md).
 
 ## Bank of Ideas demo
 
 Open **Projects → Bank of Ideas** to load the bundled example: 14 approved shots and 12 image references in a separate editable project. Model weights are separate; every generation requires your click.
 
-Use **Library → Shots → Timeline** to arrange and trim clips on V1/V2 and A1/A2, preview the edit, and export MP4 or a DaVinci Resolve timeline. [Sequence and example guide](docs/sequence-and-examples.md).
+Use **Edit Timeline** to arrange and trim clips on V1/V2 and A1/A2, preview the edit, and export MP4 or a DaVinci Resolve timeline. [Sequence and example guide](docs/sequence-and-examples.md).
 
 ## What you can make
 

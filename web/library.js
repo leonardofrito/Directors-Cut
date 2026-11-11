@@ -139,6 +139,27 @@
       toast(`${count} files saved to ${directory.name}.`);
     }catch(error){throw new Error(`${count} / ${files.length} saved. ${error.message}`);}
   }
+  async function downloadSelectedFiles(projectId,files,format='individual'){
+    if(!files.length)return;
+    let directory=null;
+    if(typeof window.showDirectoryPicker==='function'){
+      try{directory=await window.showDirectoryPicker({id:'directors-cut-selected',mode:'readwrite'});}catch(error){if(error.name==='AbortError')return;throw error;}
+    }
+    let downloads=files;
+    if(format==='zip'){
+      const result=await api(`/projects/${projectId}/downloads`,'POST',{items:files.map(f=>f.item)});
+      downloads=[{file:result.download,name:'Selected '+(files.every(f=>/\.mp4$/i.test(f.file))?'videos':'images')+'.zip'}];
+    }
+    let count=0;
+    for(const file of downloads){
+      if(!directory){const a=document.createElement('a');a.href=fileURL(file.file,projectId);a.download=file.name;document.body.append(a);a.click();a.remove();count++;continue;}
+      const name=await unusedVideoName(directory,file.name);const response=await fetch(fileURL(file.file,projectId));if(!response.ok||!response.body)throw new Error(`Saved ${count} files. Could not download ${file.name}.`);
+      let created=false;
+      try{const h=await directory.getFileHandle(name,{create:true});created=true;await response.body.pipeTo(await h.createWritable());count++;}
+      catch(error){if(created)await directory.removeEntry(name).catch(()=>{});throw error;}
+    }
+    toast(directory?`${count} ${count===1?'file':'files'} saved to ${directory.name}.`:'Downloads requested. Your browser controls the save location.');
+  }
   async function batchAction(action){
     if(batchBusy||!selectedShots.size)return;const projectId=tab==='assets'?(librarySource||project.id):project.id,ids=[...selectedShots],kind=tab==='shots'?'shots':'assets';
     if(action==='delete'&&!await confirmAssetDeletion({name:ids.length+' selected '+kind,message:`Delete ${ids.length} selected ${kind} and their takes?`},true))return;
@@ -281,5 +302,5 @@
   $('projects-close').onclick=()=>$('projects-dialog').close();$('projects-search').oninput=drawProjects;
   $('open-bank-example').onclick=()=>safe(async()=>{const result=await api('/examples/bank-of-ideas/open','POST',{});$('projects-dialog').close();await projectList();await openProject(result.id);});
   $('projects-new').onclick=()=>{$('projects-dialog').close();$('new-project').click();};
-  window.DirectorLibrary={previewSequence:()=>safe(()=>DirectorTimeline.previewFinal()),exportSequence,get tab(){return tab;},setTab,syncCounts,renderShots,prepareSelection,addAssetSelector,get selectionStamp(){return [selecting,[...selectedShots]];},selectAsset(id){if(!selecting)return false;toggleShot(id);return true;},setProjects(value){projects=value;if($('projects-dialog').open)drawProjects();}};
+  window.DirectorLibrary={downloadSelectedFiles,previewSequence:()=>safe(()=>DirectorTimeline.previewFinal()),exportSequence,get tab(){return tab;},setTab,syncCounts,renderShots,prepareSelection,addAssetSelector,get selectionStamp(){return [selecting,[...selectedShots]];},selectAsset(id){if(!selecting)return false;toggleShot(id);return true;},setProjects(value){projects=value;if($('projects-dialog').open)drawProjects();}};
 })();

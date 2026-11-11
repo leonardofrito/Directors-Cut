@@ -120,7 +120,7 @@ async def describe(request):
 
 async def save(request):
     data=await request.json();automatic=data.get('automatic');optional=data.get('optional',[])
-    if not isinstance(automatic,bool) or not isinstance(optional,list) or any(not isinstance(x,str) or x not in ('gguf','vsa','selflift') for x in optional):raise ValueError('Invalid automatic node setup settings.')
+    if not isinstance(automatic,bool) or not isinstance(optional,list) or any(not isinstance(x,str) or x not in ('gguf','vsa','selflift','bfs-h3') for x in optional):raise ValueError('Invalid automatic node setup settings.')
     write_json(PREFS,{'automatic':automatic,'optional':list(dict.fromkeys(optional))});return web.json_response(preferences())
 
 async def install(request):

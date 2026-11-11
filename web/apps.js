@@ -27,6 +27,7 @@
       menu.querySelectorAll('[data-app]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.app===id)));
       if(id==='asset-creation')await switchCreationMode('asset');else await DirectorVideo.enter();
       window.render();
+      if(id==='second-take')window.DirectorModelDownloads?.ensureSwapAll();
     }finally{switching=false;}
   }
   menu.querySelectorAll('[data-app]').forEach(b=>{b.setAttribute('aria-label',names[b.dataset.app]);b.onclick=()=>safe(()=>select(b.dataset.app));});

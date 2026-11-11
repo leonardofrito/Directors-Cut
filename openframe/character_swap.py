@@ -11,12 +11,28 @@ from .storage import now
 from .motion_reference import MAX_VIDEO, run_ffmpeg
 
 APP = 'second-take'
-LORA = 'h3_character_swap_v1.5.safetensors'
+LORA = 'minimax_h3_motion_transfer_tara_v1.0_ref2va.safetensors'
+MODES = {
+    'motion':dict(code='M',label='Motion Transfer',lora=LORA),
+    'character-1':dict(code='C1',label='Character Swap 1',lora='h3_character_swap_v1.5.safetensors'),
+    'character-2':dict(code='C2',label='Character Swap 2',lora='minimax_h3_character_swap_v1.1_ref2va_fro.safetensors'),
+}
+
+def mode(data):
+    selected=data.get('swap_mode')
+    if not selected:
+        selected=next((key for key,row in MODES.items() if key!='motion' and any(l.get('name')==row['lora'] for l in data.get('loras',[]) if isinstance(l,dict))),'motion')
+    if selected not in MODES:raise ValueError('Choose Motion Transfer, Character Swap 1 or Character Swap 2.')
+    return selected
+
+def modes():
+    return [dict(id=key,**row) for key,row in MODES.items()]
 WORKSPACE = '_SecondTake'
 MAX_REFERENCES=6
-PROMPT_TAIL=("Preserve the original video's background, lighting, camera and performances throughout. "
-    "Use the reference images only for the characters; ignore their studio backgrounds. "
-    "Keep each replacement complete from the first frame to the last, without morphing or transitions.")
+PROMPT_TAIL=("Preserve the source performance, timing, camera and all unassigned scene elements. "
+    "Use each assigned reference for its replacement identity and complete three-dimensional design; ignore unassigned photo backgrounds and collage layouts. "
+    "Replace the entire requested target, including its silhouette and structure, not only its color or texture. "
+    "Requested replacements override preservation of the original target. Keep each replacement stable from the first frame to the last.")
 
 def default_direction(project,refs,mapping=None,people=()):
     assets={a['id']:a for a in project.get('assets',[])};lines=[]
@@ -26,8 +42,11 @@ def default_direction(project,refs,mapping=None,people=()):
         if not asset:continue
         person=next((p for p in people if p['id']==person_id),{})
         label=re.sub(r'^<Subject\s*\d+>\s*[-:]?\s*','',person.get('label',''),flags=re.I).strip() if person.get('matched') else ''
-        label=label or ('selected person '+person_id.lstrip('pu'))
-        lines.append(f"Replace the original {label} in @video1 with @{asset['handle']}, including their face, hair, body and complete outfit.")
+        if asset.get('kind')=='character':
+            label=label or ('main foreground person' if len(lines)==0 else 'selected person '+person_id.lstrip('pu'))
+            lines.append(f"Replace the original {label} in @video1 with @{asset['handle']}, including their face, hair, body and complete outfit.")
+        else:
+            lines.append(f"Replace the corresponding source object in @video1 with @{asset['handle']}, using its full shape, proportions, materials and structure. Use the original object only for its motion and placement.")
     return '\n'.join([*lines,PROMPT_TAIL])
 
 
@@ -111,6 +130,9 @@ def prompt(accessory=False):
 
 def settings(data):
     from . import video
+    selected_mode=mode(data)
+    if video.model_preset(data)=='hyperflow':
+        raise ValueError('HyperFlow does not support Character Swap. Choose Base or OmniRef.')
     refs = data.get('reference_ids', [])
     if not isinstance(refs, list) or not all(isinstance(r,str) for r in refs) or len(refs) > MAX_REFERENCES or len(refs) != len(set(refs)):
         raise ValueError('Choose up to six character, product or clothing references.')
@@ -133,13 +155,34 @@ def settings(data):
     if not isinstance(full, bool) or any(isinstance(x, bool) or not isinstance(x, (int, float)) or not math.isfinite(x) for x in (start, end)) or start < 0 or end <= start:
         raise ValueError('Choose a valid video range.')
     base = {**data, 'duration': 5, 'prompt': prompt(len(refs) == 2),
-            'selflift': data.get('selflift', True), 'prompt_enhancer': False, 'video_direction': {},
+            'selflift': data.get('selflift', True), 'prompt_enhancer': data.get('prompt_enhancer',False), 'video_direction': {},
             'motion_reference_id': '', 'audio_reference_id': '', 'output_audio_id': '',
-            'loras': [dict(name=LORA, strength=1, enabled=True)]}
+            'loras': [dict(name=MODES[selected_mode]['lora'], strength=1, enabled=True)]}
     base.pop('studio_app', None)
     result = video.settings(base)
-    analysis=data.get('swap_analysis_id','');mapping=data.get('swap_people_map',{})
+    result['swap_mode']=selected_mode
+    reviewed=data.get('swap_cuts_reviewed',False)
+    candidates=data.get('swap_cut_candidates',[])
+    if not isinstance(reviewed,bool) or not isinstance(candidates,list) or len(candidates)>720:
+        raise ValueError('Invalid reviewed video cuts.')
+    for cut in candidates:
+        if not isinstance(cut,dict) or set(cut)!={'frame','accepted'} or type(cut['frame']) is not int or cut['frame']<0 or not isinstance(cut['accepted'],bool):
+            raise ValueError('Invalid reviewed cut marker.')
+    if len({c['frame'] for c in candidates})!=len(candidates):raise ValueError('Duplicate video cut marker.')
+    review_start,review_end=data.get('swap_cut_review_start'),data.get('swap_cut_review_end')
+    if reviewed and (type(review_start) is not int or type(review_end) is not int or review_start<0 or review_end<=review_start):
+        raise ValueError('Review cuts for the selected trim range.')
+    if reviewed and any(not review_start<c['frame']<review_end for c in candidates):raise ValueError('Cut marker outside the reviewed trim.')
+    result.update(swap_cuts_reviewed=reviewed,swap_cut_candidates=sorted(candidates,key=lambda c:c['frame']),
+                  swap_cut_review_start=review_start,swap_cut_review_end=review_end)
+    # New TARA edits use the source clip directly, without person detection.
+    analysis='';mapping={}
     if not isinstance(analysis,str) or analysis and not re.fullmatch('[a-f0-9]{32}',analysis) or not isinstance(mapping,dict) or len(mapping)>MAX_REFERENCES or any(not isinstance(k,str) or not re.fullmatch('[pu][0-9]+',k) or v not in refs for k,v in mapping.items()):raise ValueError('Invalid person mapping.')
+    ignored=[]
+    if not isinstance(ignored,list) or len(ignored)>100 or any(not isinstance(i,str) or not re.fullmatch(r'[pu][0-9]+',i) for i in ignored):raise ValueError('Invalid ignored detections.')
+    if any(i in mapping for i in ignored):raise ValueError('An ignored detection cannot have a replacement.')
+    if data.get('swap_manual_targets'):raise ValueError('Object replacement has been removed. Select people again before generating.')
+    result.update(swap_ignored_people=list(dict.fromkeys(ignored)))
     # Old take snapshots may request neutralization. New generations always use
     # the original source video, including after Reuse Settings.
     result.update(swap_analysis_id=analysis,swap_people_map=mapping,swap_neutralize=False)
@@ -161,6 +204,8 @@ def resolve(project, settings, store=None):
     duration = round((min(end, source['duration']) - start) * 24) / 24
     settings.update(duration=duration, swap_start=start, swap_end=start+duration,
                     swap_source=dict(source), swap_ratio=f"{source['width']}:{source['height']}")
+    if settings.get('swap_cuts_reviewed') and (settings['swap_cut_review_start']!=round(start*24) or settings['swap_cut_review_end']!=round((start+duration)*24)):
+        raise ValueError('The trim changed. Open Adjust Trim and review its cuts again.')
     roles=settings['swap_roles']
     assets={a['id']:a for a in project.get('assets',[])}
     if any(ident not in assets or not assets[ident].get('file') for ident in refs):
@@ -173,8 +218,11 @@ def resolve(project, settings, store=None):
         manifest=selected_manifest(store or Store(),project['id'],settings);people=manifest['people']
         valid={p['id'] for p in people}
         if not mapping or any(k not in valid for k in mapping):raise ValueError('Choose a person and a replacement image.')
-    direction=settings['swap_direction'] if settings['swap_direction_enabled'] and settings['swap_direction'].strip() else default_direction(project,refs,mapping,people)
-    if not settings['swap_direction_enabled'] or not settings['swap_direction'].strip():
+    automatic_direction=default_direction(project,refs,mapping,people)
+    direction=settings['swap_direction'] if settings['swap_direction_enabled'] and settings['swap_direction'].strip() else automatic_direction
+    if not settings['swap_direction_enabled'] or not settings['swap_direction'].strip() or direction==automatic_direction:
+        if mode(settings)!='motion':
+            direction+=' Match the reference clothing colors, patterns and materials exactly; do not retain the source person\'s outfit or replace it with a generic dark outfit.'
         settings['swap_direction']=direction;settings['swap_direction_enabled']=True
     settings['prompt']=re.sub(r'(?<![\w@])@([a-zA-Z0-9_]+)',lambda m:'<Video 1>' if m[1].casefold()=='video1' else bindings.get(m[1].casefold(),m[0]),direction)
     return source
@@ -221,7 +269,8 @@ async def choose_source(store,data):
             project=store.load(WORKSPACE);shot=store.shot(project,data['shot_id']);project.setdefault('swap_sources',[]).append(row)
         except BaseException:
             target.unlink(missing_ok=True);poster.unlink(missing_ok=True);raise
-    shot.update(swap_source_id=row['id'],swap_full_duration=start==0 and abs(end-row['duration'])<1/24,swap_start=start,swap_end=end)
+    shot.update(swap_source_id=row['id'],swap_full_duration=start==0 and abs(end-row['duration'])<1/24,swap_start=start,swap_end=end,
+                swap_cuts_reviewed=False,swap_cut_candidates=[],swap_cut_review_start=None,swap_cut_review_end=None)
     store.save(project)
     return project
 
@@ -271,7 +320,8 @@ async def attach(request, store):
                    thumbnail=f'references/swap/{poster.name}', duration=info['duration'], width=info['width'],
                    height=info['height'], audio=info['audio'], created_at=now())
         project.setdefault('swap_sources', []).append(row)
-        shot.update(swap_source_id=ident, swap_full_duration=start==0 and abs(end-info['duration'])<1/24, swap_start=start, swap_end=end)
+        shot.update(swap_source_id=ident, swap_full_duration=start==0 and abs(end-info['duration'])<1/24, swap_start=start, swap_end=end,
+                    swap_cuts_reviewed=False,swap_cut_candidates=[],swap_cut_review_start=None,swap_cut_review_end=None)
         store.save(project)
         complete = True
         return project

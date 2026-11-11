@@ -23,3 +23,7 @@ Model installation does not install custom nodes. Precision labels and filenames
 Optional prompt enhancers are separate from generation encoders and must be installed explicitly.
 
 [Download catalog](model-downloads.md) · [Connection setup](comfy-connection.md) · [Quick Start](../packaging/QUICKSTART.md)
+
+## Second Take adapters
+
+Entering Second Take downloads its three missing LoRAs automatically to the configured model folder. For M / TARA, enable **Second Take / TARA** under Connection → Workflow nodes and install missing nodes, then restart ComfyUI. C1 and C2 select their own adapter; do not stack adapters manually. HyperFlow is for normal video generation.

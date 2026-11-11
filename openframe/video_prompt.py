@@ -161,12 +161,18 @@ def attach(graph,prompt,selected,seed,duration,nodes,image_nodes=()):
         'Describe feasible sequential actions, camera position and movement, lighting and sound. Budget actions and speech for the duration. '
         'Honor selected direction presets, especially single shot (no cuts) or the requested pacing. '
         'Do not invent a setting, wardrobe, props or actions absent from the request. Leave unspecified details unspecified. '
+        'For requested edits, explicitly say REPLACE the source target with the assigned picture design; a statement that someone drives or holds an object does not express replacement. '
+        'For a vehicle/object replacement, replace the complete geometry, silhouette, body and cabin, not just color or texture. Use source motion only for trajectory and timing. Requested edits override preservation of that target; preserve unrelated elements. '
         'Do not infer background details from images you cannot see. Do not output reasoning, thinking tags or commentary.')
     if image_nodes and status['vision']:
         system=system.replace('Do not infer background details from images you cannot see.',
-            'Attached images are in <Picture N> order. Ignore their square padding. Inspect each image separately and read its assigned role from the request. Describe visible environment layout, materials and light when useful, while citing its source tag inside a stable Subject definition. Keep the same grounded setting and character identities across cuts. Do not turn an environment reference into a mandatory first frame. Preserve unusual anatomy and exact invisibility constraints; never invent a head or skin for an invisible character.')
+            'Attached images are in <Picture N> order. Ignore their square padding. Inspect each image separately and read its assigned role from the request. For a replacement vehicle or product, describe its visible three-dimensional proportions, body shape, cabin/openings and materials, not only color. Multiple reference views may depict ONE object; never animate collage panels. Describe visible environment layout, depth, materials and light when useful, citing the picture in a stable Subject definition. Keep the grounded setting and identities across cuts. Do not turn an environment reference into a first frame or flat pasted background. Preserve unusual anatomy and exact invisibility constraints; never invent a head or skin for an invisible character.')
     system+='\n\nModel-specific prompting reference:\n'+runtime_guidance('h3')
     unusable=UNUSABLE_CAPTION
+    trigger=next((tag for tag in ('body_swap:','motion_transfer:') if prompt.lstrip().startswith(tag)),None)
+    if trigger:
+        system+='\nBegin with the exact task marker '+trigger+' before the six sections.'
+        unusable+=r'|\A(?!\s*'+re.escape(trigger)+r')[\s\S]*\Z'
     tags=list(dict.fromkeys(re.findall(r'<(?:Picture|Video|Audio|Subject)\s+\d+>',prompt)))
     for required in tags+['subject_definitions','summary','retention_analysis','detailed_description','overall_soundscape','non_diegetic_music']:
         unusable+=r'|\A(?![\s\S]*'+re.escape(required)+r')[\s\S]*\Z'
